@@ -1,0 +1,1232 @@
+# -> test authentification dropbox
+# token <- readRDS("droptoken.rds")
+# rdrop2::drop_acc(dtoken = token)
+
+# token <- drop_auth()
+# project_repo <- dirname(getwd())
+project_repo <- dirname( rstudioapi::getSourceEditorContext()$path )
+# project_repo <- drop_dir("!dropbox_folder", dtoken = token)
+# project_repo <- dirname(drop_dir("Traitement_AFI_UI")$path_display[1]) # -> test authentification dropbox
+
+
+# filesInfo() <- getVolumes()
+# filePaths <- filesInfo$path_display
+# data <- lapply(filePaths, drop_read_csv, stringsAsFactors = FALSE)
+# project_repo <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2"
+# project_repo <- "/Library/Frameworks/R.framework/Versions/3.5/Resources/library/shinycnes"
+## server
+
+# library(shinyFiles)
+
+# rm(Translator)
+
+# -- création des objets nécessaire à l'application
+# objet translator - pour reactive expression i18n
+translator <- Translator$new(translation_json_path = file.path("www/translations/translation.json"))
+translator$set_translation_language("Français")
+# translator$set_translation_language("English")
+# translator$set_translation_language("Deutsch")
+
+# objet db - environnement pour le chargement des données
+db = new.env()
+# -- debug
+# admin_rdata <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/tables/afiCodes.Rdata" # debug
+# load(admin_rdata, envir = db) # debug
+# test <- db[["Dispositifs"]] # debug
+
+# liste des archives utilisées dans le traitement des données
+arch_list <- c(
+  "afiDictionary.Rdata",
+  "afiDonneesBrutes.Rdata",
+  "afiCodes.Rdata",
+  "report_tables_list.Rdata"
+)
+
+##### **** define server **** #####
+afi_gui.server <- function(input, output, session) {
+  
+  # ----- Initialisation #####
+  # -- reactiveValues object for storing current selected lang.
+  # rv <- reactiveValues(lang = "fra", choice = "Français")
+  rv <- reactiveValues(
+    lang = "Français",
+    # lang = "English",
+    repAFI = NULL, 
+    all_disp_list = NULL,
+    all_arch_present = 0
+  )
+  
+  # -- volumes
+  # get server volumes
+  # volumes <- c("Home" = getwd())
+  volumes <- c("Home" = project_repo)
+  
+  # -- link to www directory and objects
+  addResourcePath("www", file.path(project_repo, "www"))
+  output$img_logo <- renderUI(
+    img(src = "www/img/logo_ForestAllia_2.png", width = "100")
+  )
+  
+  
+  
+  
+  
+  # ----- choose language ##### 
+  # TODO : à revoir
+  # -- i18n reactive expression
+  i18n <- reactive({
+    selected <- rv$lang # input$select_language
+    if (length(selected) > 0 && selected %in% translator$languages) {
+      translator$set_translation_language(selected)
+    }
+    translator
+  })
+  
+  # -- data reactive expression
+  data <- reactive({
+    selected <- wd()
+    
+    if (length(selected) > 0 & rv$all_arch_present == 1) {
+      # chemins des archives -> éviter de tout mettre en rv -> cela crée des mises à jour des dependents inutiles
+      tables_list_rdata <-
+        file.path(wd(), "tables/report_tables_list.Rdata")
+      inventory_rdata <-
+        file.path(wd(), "tables/afiDonneesBrutes.Rdata")
+      admin_rdata <-
+        file.path(wd(), "tables/afiCodes.Rdata")
+      dictionary_rdata <-
+        file.path(wd(), "tables/afiDictionary.Rdata")
+      
+      # loading
+      load(tables_list_rdata, envir = db)
+      load(inventory_rdata, envir = db)
+      load(admin_rdata, envir = db)
+      load(dictionary_rdata, envir = db)
+    }
+    db
+  })
+
+  # -- function to display modal dialog with language selection input #####
+  choose_lang_modal <- function(failed = FALSE) {
+    modalDialog(
+
+      selectInput(
+        inputId = "select_language",
+        # choices = translator$languages,
+        # TODO : améliorer afficahge (choix par défaut + choix Français, Anglais, etc...)
+        choices = translator$languages,
+        
+        # TODO : use named translator$languages
+        # choices = c(i18n()$t("Français"), i18n()$t("Anglais"), i18n()$t("Allemand")),
+        label = i18n()$t("Changer la langue"),
+        selected = input$selected_language
+      ),
+
+      footer = tagList(
+        modalButton("Cancel"),
+        actionButton("ok", "OK")
+      )
+    )
+  }
+
+  # Show modal when button is clicked.
+  observeEvent(input$switch_language, {
+    showModal(choose_lang_modal())
+  })
+
+  # When OK button is pressed, attempt to change language for all tags. If successful,
+  # remove the modal.
+  observeEvent(input$ok, {
+    # Check that language selected is right # TODO : inutile
+    # if (!is.null(input$selected_language) && nzchar(input$selected_language)) {
+
+    # rv$choice <- input$selected_language
+    rv$lang <- input$select_language
+    removeModal()
+
+    # if (rv$choice == i18n()$t("Français")) {
+    #   rv$lang <- "fra"
+    # } else if (rv$choice == i18n()$t("Anglais")) {
+    #   rv$lang <- "eng"
+    # } else if (rv$choice == i18n()$t("Allemand")) {
+    #   rv$lang <- "deu"
+    # }
+  })
+  
+  
+  
+  # ----- dashboard header items #####
+  output$ui_title <- renderText({
+    i18n()$t("Plateforme GF")
+  })
+  
+  # # -- dictionary ?
+  # output$title <- renderText({input$select_language})
+  
+  
+  
+  # -- get server volumes
+  # volumes <- c("Home" = getwd())
+  # reactive value qui contiendra le chemin du répertoire administrateur
+  global <- reactiveValues(path = volumes)
+
+  # choix du répertoire de travail
+  shinyDirChoose(
+    input, 
+    id = "directory", 
+    roots = volumes,
+    session = session,
+    updateFreq = 0
+  )
+  
+  # print working directory to browser
+  output$directorypath <- renderPrint({
+    if (is.integer(input$directory)) {
+      parseDirPath("Aucun répertoire sélectionné")
+    } else {
+      parseDirPath(volumes, input$directory)
+    }
+  })
+  
+  # 2.2/ choose language ----
+  # ##### function to display modal dialog with language selection input #####
+  # choose_lang_modal <- function(failed = FALSE) {
+  #   modalDialog(
+  #     
+  #     selectInput(
+  #       inputId = "select_language",
+  #       choices = translator$languages,
+  #       label = i18n$t("Sélectionner la langue utilisateur"),
+  #       width = "150pt"
+  #     ),
+  #     
+  #     if (failed)
+  #       div(tags$b("Veuillez choisir une langue", style = "color: red;")),
+  #     
+  #     footer = tagList(
+  #       modalButton("Cancel"),
+  #       actionButton("ok", "OK")
+  #     )
+  #   )
+  # }
+  # 
+  # # Show modal when button is clicked.
+  # observeEvent(input$switch_language, {
+  #   showModal(choose_lang_modal())
+  # })
+  # 
+  # # When OK button is pressed, attempt to load the data set. If successful,
+  # # remove the modal. If not show another modal, but this time with a failure
+  # # message.
+  # observeEvent(input$ok, {
+  #   # Check that data object exists and is data frame.
+  #   if (!is.null(input$select_language) && nzchar(input$select_language)) {
+  #     rv$choice <- input$select_language
+  #     removeModal()
+  #     
+  #     if (is.null(rv$choice))
+  #       "Aucune langue sélectionnée"
+  #     else
+  #       if (rv$choice == "fra") {
+  #         rv$lang <- "fra"
+  #       } else if (rv$choice == "eng") {
+  #         rv$lang <- "eng"
+  #       } else if (rv$choice == "deu") {
+  #         rv$lang <- "deu"
+  #       }
+  #   } else {
+  #     showModal(choose_lang_modal(failed = TRUE))
+  #   }
+  # })
+  
+  
+  # ##### 3/ dashboard body #####
+  # ##### 3.1/ 1st tab content : analyse de dispositif #####
+  # ##### 3.1.1/ 1st box - 'project options' #####
+  # # --- choix du répertoire de travail
+  # shinyDirChoose(
+  #   input, # input ou output object
+  #   id = "path_project_sel_ancien", # nom du shinyDirChoose button -> input object ?
+  #   roots = volumes,
+  #   session = session
+  #   )
+  # # -- reaction : if paths change after using the shinyDirButton, update the values and the textInput
+  # observe({
+  #   path_project_string <- parseDirPath(volumes, input$path_project_sel)
+  #   updateTextInput(session, "path_project_textin", value = path_project_string)
+  # })
+  # # -- update global
+  # observeEvent(input$path_project_sel, {
+  #   # define new working directory path (must be named vector)
+  #   sel_path <- parseDirPath(volumes, input$path_project_sel)
+  #   wd <- basename(sel_path)
+  #   # update
+  #   global$path <- c(wd = sel_path)
+  # })
+  # # -- test pour suivi / debug
+  # observe({
+  #   # cat("\ninput$path_project_sel value:\n\n")
+  #   # print(input$path_project_sel)
+  #   # print(global$path)
+  # })
+  # # --
+  # 
+  # 
+  # ##### 3.1.2/ 2nd box - 'import data' #####
+  # # -- bouton 'import des données administrateurs'
+  # shinyFileChoose(
+  #   input, # input ou output object
+  #   id = "admin_files", # nom du shinyDirChoose button -> input object ?
+  #   roots = global$path # volumes # input$path_project_sel
+  # )
+  # 
+  # # -- rv waiting for files_list
+  # # rv$file <- reactive(NULL)
+  # # rv$wd <- reactiveValues(papapa = c(path = volumes))
+  # # -- debug
+  # observeEvent(input$stand_select, {
+  #   #   cat("\ninput$admin_files - fichiers admin sélectionné(s) :\n")
+  #   #   # print(input$admin_files)
+  # # print(global)
+  # })
+  # # -- debug
+  # 
+  # # -- debug
+  # # observe({
+  # #   cat("\ninput$admin_files - fichiers admin sélectionné(s) :\n")
+  # #   # print(input$admin_files)
+  # # 
+  # #   repAFI <- parseDirPath(volumes, input$path_project_sel)
+  # #   print(repAFI)
+  # #   print(str(parseFilePaths(global$path, input$admin_files)))
+  # #   # afi_XlsTranslation(repAFI, files_list)
+  # # })
+  # # --
+  # 
+  # 
+  # # rv$files_list <- renderText({ as.character(
+  # #   parseFilePaths(global$path, input$admin_files)$datapath
+  # # ) })
+  #   # update reactive value
+  # observeEvent(input$admin_files, { rv$files_list <- input$admin_files })
+  # # output$files_list <- renderText({ as.character(
+  # #   # adresses des fichiers à importer
+  # #   parseFilePaths(global$path, input$admin_files)$datapath
+  # # ) })
+  # # output$files_list <- rv$files_list
+  # output$files_list <- renderText({ as.character(
+  #   # adresses des fichiers à importer
+  #   parseFilePaths(global$path, rv$files_list)$datapath
+  # ) })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  ##### 3.2 2n tab content : analyse de dispositif V2 #####
+  # rv <- reactiveValues(path = "/Users/Valentin/Travail/Outils/GitHub")
+  # observeEvent(input$directory, { 
+  #   # print(paste0("avant :", rv$path))
+  #   wd_path <- parseDirPath(volumes, input$directory)
+  #   rv$path <- c(wd = wd_path) #'Répertoire administrateur'
+  #   # print( wd_reactive() )
+  # })
+  # -- 1st box 'Import des données
+  # TODO : utiliser des modules pour créer les 2 colonnes semblables !
+  output$import_data_box <- renderUI({
+    box(
+      title = i18n()$t("Import des données"),
+      status = "primary",
+      solidHeader = TRUE,
+      collapsible = TRUE,
+      collapsed = TRUE, # FALSE
+      width = 12,
+      
+      # -- column 'admin data import'
+      column(
+        width = 12,
+        style = "display:inline-block;width:50%",
+        
+        div(
+          # -- text 'import des données administrateur'
+          column(
+            width = 12,
+            # div(
+            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+            strong(i18n()$t("Import des données administrateur :"))
+            # ),
+          ),
+          
+          # -- bouton 'import des données administrateur'
+          column(
+            width = 12,
+            style = "display:inline-block;width:150pt",
+            actionButton(
+              inputId = "import_admin_data", 
+              label = i18n()$t("Importer les données"),
+              width = "135pt"
+            )
+          )
+        ),
+        
+        # -- bouton 'sélection des fichiers administrateurs'
+        column(
+          style = "display:inline-block;width:100%;padding:-10pt",
+          # style = "display:inline-block;border:1px solid;width:100%;",
+          width = 12,
+          shinyFilesButton(
+            id = "select_admin_files",
+            label = i18n()$t("Sélection des fichiers administrateurs"),
+            title = NULL,
+            multiple = TRUE
+          )
+        )
+      ),
+      
+      # -- column 'inventory data import'
+      column(
+        width = 12,
+        style = "display:inline-block;width:50%",
+        
+        div(
+          # -- text 'import des données d'inventaire'
+          column(
+            width = 12,
+            # div(
+            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+            strong(i18n()$t("Import des données d'inventaire :"))
+            # ),
+          ),
+          
+          # -- bouton 'import des données d'inventaire'
+          column(
+            width = 12,
+            style = "display:inline-block;width:150pt",
+            actionButton(
+              inputId = "import_inventory_data", 
+              label = i18n()$t("Importer les données"),
+              width = "135pt"
+            )
+          )
+        ),
+        
+        # -- bouton 'sélection des fichiers d'inventaire'
+        column(
+          style = "display:inline-block;width:100%;",
+          # style = "display:inline-block;border:1px solid;width:100%;",
+          width = 12,
+          shinyFilesButton(
+            id = "select_inventory_files",
+            label = i18n()$t("Sélection des fichiers d'inventaire"),
+            title = NULL,
+            multiple = TRUE
+          )#,
+          # verbatimTextOutput("directorypath")
+        )
+      )
+    )
+  })
+  
+  
+  # function to update volumes
+  ui_volumes <- function() {
+    sel_path <- parseDirPath(volumes, input$directory)
+    # print(sel_path)
+    # volumes <- c(home = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2")
+    # print(volumes)
+    if (length(sel_path) > 0 && !sel_path %in% volumes) {
+      vnames <- c(basename(sel_path), names(volumes))
+      setNames(c(sel_path, volumes), vnames)
+    } else {
+      volumes
+    }
+    # print(volumes)
+  }
+  
+  # file choose (for admin import)
+  # TODO : comprendre comportement de ui_volumes - pas besoin de pass down les arguments car argument session présent ?
+  # TODO : fusionner boutons importer et sélectionner les fichiers.
+  shinyFileChoose(
+    input,
+    id = "select_admin_files",
+    roots = ui_volumes, # rv$path
+    session = session
+  )
+  
+  # file choose (for inventory import)
+  shinyFileChoose(
+    input,
+    id = "select_inventory_files",
+    roots = ui_volumes,
+    session = session
+  )
+  
+  # bouton 'import des données administrateur'
+  observeEvent(input$import_admin_data, {
+      
+      # liste des fichiers à importer
+      list_files <- parseFilePaths(ui_volumes, input$select_admin_files)$datapath
+    
+    # sécurité fichiers d'inventaire (en mettre 1 pour le répertoire admin ?)
+    # if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+    if (length(list_files) == 0) {
+      show_alert(
+        title = i18n()$t("Aucun fichier administrateur sélectionné"),
+        text = i18n()$t("Sélectionner le(s) fichier(s) administrateur avant de commencer l'import des données"),
+        type = "error"
+      )
+    } else {
+      
+      # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
+      repAFI <- parseDirPath(ui_volumes, input$directory)
+      # print(repAFI); print(list_files) # debug
+      
+      # call afi_CodesTranslation (import des données administrateurs AFI)
+      afi_CodesTranslation(repAFI, files_list = list_files, i18n = i18n)
+      
+      # load admin data - A tester
+      load(file.path(repAFI, "tables/afiCodes.Rdata"), envir = db)
+    }
+  })
+  
+  # bouton 'import des données d'inventaire' - import des données (package PermAFI)
+  observeEvent(input$import_inventory_data, {
+      
+      # liste des fichiers à importer
+    # list_files <- parseFilePaths(rv$path, input$select_inventory_files)$datapath
+    list_files <- parseFilePaths(ui_volumes, input$select_inventory_files)$datapath
+    
+    # sécurité fichiers d'inventaire (en mettre 1 pour le répertoire admin ?)
+    # if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+    if (length(list_files) == 0) {
+      show_alert(
+        title = i18n()$t("Aucun fichier d'inventaire sélectionné"),
+        text = i18n()$t("Sélectionner des fichiers d'inventaire avant de commencer l'import des données"),
+        type = "error"
+      )
+    } else {
+    
+    # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
+    repAFI <- parseDirPath(ui_volumes, input$directory)
+    # print(repAFI); print(list_files) # debug
+    
+    # call afi_XlsTranslation (import des données d'inventaire AFI)
+    afi_XlsTranslation(repAFI, list_files, i18n = i18n)
+    
+    }
+  }) # end of observeEvent
+  
+  
+  
+  
+  # # bouton 'import des données' - import des données (package PermAFI)
+  # observeEvent(input$import_inventory_data, {
+  #   
+  #   # liste des fichiers à importer
+  #   # list_files <- parseFilePaths(rv$path, input$select_inventory_files)$datapath
+  #   list_files <- parseFilePaths(ui_volumes, input$select_inventory_files)$datapath
+  #   
+  #   # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
+  #   repAFI <- parseDirPath(ui_volumes, input$directory)
+  #   # print(repAFI); print(list_files) # debug
+  #   
+  #   # call afi_XlsTranslation (import des données d'inventaire AFI)
+  #   afi_XlsTranslation(repAFI, list_files)
+  # }) # end of observeEvent
+  
+  # -- bouton 'choix du dispositif
+  output$stand_select_btn <- renderUI({
+    # take a dependency on input$load_data
+    input$load_data
+    
+    # button
+    selectInput(
+      inputId = "stand_select", 
+      label = i18n()$t("Sélectionner un dispositif"), 
+      choices = rv$all_disp_list,
+      # choices = c("Sélectionner un dispositif", all_disp_list),
+      # selected = "Sélectionner un dispositif"
+      multiple = F
+    )
+  })
+  
+  # -- bouton 'chargement des données en archive'
+  output$load_data_btn <- renderUI({
+    # take a dependency on input$directory
+    input$directory
+    
+    # button
+    actionButton(
+      inputId = "load_data", 
+      label = i18n()$t("Chargement des données en archive"),
+      width = "200pt"
+    )
+  })
+  
+  # edit check report
+  output$check_report = downloadHandler(
+    filename = function() {
+      paste0(rv$disp_num, "_verif_", rv$last_year, ".pdf")
+    },
+    
+    content = function(file) {
+      # sécurité répertoire administrateur
+      if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+        show_alert(
+          title = i18n()$t("Aucun répertoire administrateur sélectionné"),
+          text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
+          type = "error"
+        )
+      } else {
+        out = knit2pdf(
+          input = rv$template_path$check_report, 
+          output = rv$output_filename$check_report,
+          compiler = "pdflatex",
+          quiet = TRUE,
+          # envir = data(),
+          clean = TRUE
+        )
+        file.rename(out, file) # move pdf to file for downloading
+      }
+    },
+    
+    contentType = 'application/pdf'
+  )
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  # -- react to 'vérification des données' button
+  # observeEvent(input$edit_check_report, {
+  #   
+  #   # sécurité répertoire administrateur
+  #   # if (is.null(rv$repAFI) | !length(rv$repAFI)) { # test que repAFI bien défini
+  #   if ( is.integer(input$directory) ) {
+  #     show_alert(
+  #       title = i18n()$t("Aucun répertoire administrateur sélectionné"),
+  #       text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
+  #       type = "error"
+  #     )
+  #   } else {
+  #     # show_alert(
+  #     #   title = i18n()$t("Bouton non fonctionnel"),
+  #     #   text = i18n()$t("En cours de construction"),
+  #     #   type = "error"
+  #     # )
+  #     
+  #     # # barre de progression bidon
+  #     # withProgress(
+  #     #   message = "test",
+  #     #   detail = "test en cours",
+  #     #   value = 0,
+  #     #   style = "notification", {
+  #     #     
+  #     #     for (i in 1:10) {
+  #     #       print(i)
+  #     #       incProgress(amount = 1 / 10) 
+  #     #     }
+  #     #   })
+  #   }
+  # })
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+  
+      
+      
+  # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermAFI)
+  observeEvent(input$process_results, {
+    
+    # sécurité répertoire administrateur
+    # if (is.null(rv$repAFI) | !length(rv$repAFI)) { # test que repAFI bien défini
+    if ( is.integer(input$directory) ) {
+      show_alert(
+        title = i18n()$t("Aucun répertoire administrateur sélectionné"),
+        text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
+        type = "error"
+      )
+    } else {
+    
+      withProgress(
+        message = i18n()$t("Calcul des résultats en cours"),
+        detail = i18n()$t("Calcul des résultats par arbres..."),
+        value = 0,
+        style = "notification", {
+          
+        # construction de la table de combinaison des résultats
+        results_by_plot_to_get <- build_combination_table(vecteur = data()[["tables_list"]]) # loaded with rv$tables_list_rdata
+        # data()[["tables_list"]]
+        # print(results_by_plot_to_get)
+        
+        # -- results : stand scale
+        # setup : table listant les ensembles à prendre en compte (individuellement) dans l'agrégation (1:dispositif)
+        results_by_stand_to_get <- data.frame(
+          V1 = "Disp", V2 = NA, V3 = NA, V4 = NA, V5 = NA, 
+          V6 = NA, V7 = NA, V8 = NA, V9 = NA, 
+          stringsAsFactors = F
+        )
+        
+        # progress bar - calcul du nombre total de tables à importer
+        # TODO : changer la place de l'argument complete_progress (utiliser ... ?)
+        complete_progress <- 
+          # afi_Calculs
+          9 + 
+          # afi_AgregArbres
+          nrow(results_by_plot_to_get) +
+          # afi_AgregPlacettes
+          nrow(results_by_stand_to_get) * nrow(results_by_plot_to_get)
+        
+        # TODO : recréer une fonction build_tables ?
+      # -- results : tree scale
+      # if (continue == T) {
+        #  Etape de calcul des variables par arbre
+        # print(paste0("wd : ", wd())) # debug
+        # print(paste0("output_dir : ", rv$rep_sav)) # debug
+        # print(paste0("disp : ", rv$disp)) # debug
+        # print(paste0("last_cycle : ", rv$last_cycle)) # debug
+        # print(paste0("complete_progress : ", complete_progress)) # debug
+        # print(paste0("dim(results_by_plot_to_get)[1] : ", dim(results_by_plot_to_get)[1])) # debug
+        afi_Calculs(
+          wd = rv$repAFI, 
+          output_dir = rv$rep_sav$AFI_report, 
+          disp = rv$disp, 
+          last_cycle = rv$last_cycle,
+          complete_progress = complete_progress,
+          i18n = i18n
+        )
+      # }
+        
+        # afi_AgregArbres call
+        # (pour le dispositif en cours d'analyse uniquement)
+        # print(paste0("complete_progress : ", complete_progress)) # debug
+        afi_AgregArbres(
+          wd = rv$repAFI,
+          output_dir = rv$rep_sav$AFI_report,
+          combination_table = results_by_plot_to_get,
+          disp = rv$disp,
+          last_cycle = rv$last_cycle,
+          complete_progress = complete_progress,
+          i18n = i18n
+        )
+        
+        # afi_AgregPlacettes call
+        afi_AgregPlacettes(
+          wd = rv$repAFI,
+          output_dir = rv$rep_sav$AFI_report,
+          combination_table = results_by_stand_to_get,
+          disp = rv$disp, last_cycle = rv$last_cycle,
+          complete_progress = complete_progress,
+          i18n = i18n
+        )
+      # } end of 'build tables' function # TODO : construire une nouvelle version ?
+        }) # end of withProgress
+      
+      show_alert(
+        title = i18n()$t("Calculs des résultats termin\u00E9s !!"),
+        text = i18n()$t("Calculs des résultats termin\u00E9s et archiv\u00E9s"),
+        type = "success"
+      )
+    # })
+    }
+  }) # end of observeEvent
+  
+  # # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermAFI)
+  # observeEvent(input$edit_AFI_report, {
+  #   
+  #   # -- répertoire de travail
+  #   repAFI <- parseDirPath(ui_volumes, input$directory)
+  #   # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #   
+  #   # -- chargement des données
+  #   # chemins relatifs des archives
+  #   admin_arch <- "tables/afiCodes.Rdata"
+  #   
+  #   # création d'un nouvel environnement et chargement
+  #   db = new.env()
+  #   # db = globalenv()
+  #   # print(str(db))
+  #   load( file.path(repAFI, admin_arch) , db) # TODO : à améliorer - supprimer chargements inutiles ! # to load Dispositif + Cycles
+  #   disp <- input$stand_select
+  #   
+  #   with(db, {
+  #     # -- gestion des noms et num du dispositif
+  #     disp_num <- as.numeric(str_sub(disp, 1, str_locate(disp, "-")[, 1] - 1)) #changement2
+  #     disp_name <- 
+  #       with(Dispositifs, Nom[match(disp_num, NumDisp)])
+  #     
+  #     # -- arguments relatifs au dispositifs
+  #     last_cycle <- 
+  #       with(Cycles, max(Cycle[NumDisp == disp_num], na.rm = T))
+  #     last_year <-
+  #       with(Cycles, Annee[NumDisp == disp_num & Cycle == last_cycle])
+  #     
+  #     if (length(last_year) > 1) {
+  #       stop("Correction du classeur administrateur nécessaire : il y a 2 années identiques renseignées dans la feuille Cycles")
+  #     }
+  #     
+  #     # -- création du dossier de sortie
+  #     output_dir <- file.path("out", disp, "livret_AFI")
+  #     dir.create(output_dir, showWarnings = F, recursive = T)
+  #     
+  #     # -- définition des arguments nécessaires au knit
+  #     repPdf <- file.path(repAFI, output_dir)
+  #     repLogos <- file.path(repAFI, "data/images/logos/")
+  #     repFigures <- file.path(repPdf, "figures/")
+  #     
+  #     # -- superassignements
+  #     # répertoire de sauvegarde pour les tables spécifiques du dispositif
+  #     rep_sav <<- dirname(repPdf)
+  #     # nom de la sortie en .tex
+  #     output_filename <- paste0(disp_num, "_livret-AFI_", last_year, ".tex")
+  #     output <<- file.path(repPdf, output_filename)
+  #   })
+  # 
+  #   template <- "afi_Livret_2020.Rnw"
+  #   # TODO : supprimer les messages de joining by
+  #   
+  #   # output !!
+  #   output$report = downloadHandler(
+  #     filename = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/out/1-Bois des Brosses/livret_AFI/1_livret-AFI_2018.pdf",
+  #     
+  #     content = function(file) {
+  #       out = knit2pdf(
+  #         "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/template/afi_Livret_2020.Rnw",          clean = TRUE,
+  #         output = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/out/1-Bois des Brosses/livret_AFI/1_livret-AFI_2018.tex",
+  #         compiler = "pdflatex",
+  #         quiet = TRUE,
+  #         envir = db
+  #         )
+  #       file.rename(out, file) # move pdf to file for downloading
+  #     },
+  #     
+  #     contentType = 'application/pdf'
+  #   )
+  #   
+  #   # knit2pdf(
+  #   #   input = file.path(repAFI, "template", template),
+  #   #   output = output,
+  #   #   compiler = "pdflatex",
+  #   #   quiet = TRUE,
+  #   #   envir = db
+  #   # )
+  #   
+  #   print(file.path(repAFI, "template", template))
+  #   print(output)
+  # }) # end of observeEvent
+  
+  
+  # db1 <- reactive({
+  #   # créer une réactive value pour le répertoire admin ?
+  #   repAFI = parseDirPath(ui_volumes, input$directory)
+  #   # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #   
+  #   # -- chargement des données
+  #   # chemins relatifs des archives
+  #   admin_arch = "tables/afiCodes.Rdata"
+  #   
+  #   # -- chargement des données
+  #   # chemins relatifs des archives
+  #   tables_list_arch <- file.path(repAFI, "tables/report_tables_list.Rdata")
+  #   inventory_arch <- file.path(repAFI, "tables/afiDonneesBrutes.Rdata")
+  #   admin_arch <- file.path(repAFI, "tables/afiCodes.Rdata")
+  #   dictionary_arch <- file.path(repAFI, "tables/afiDictionary.Rdata")
+  #   
+  #   # création d'un nouvel environnement et chargement
+  #   # db = new.env()
+  #   # db = globalenv()
+  #   # print(str(db))
+  #   
+  #   # load(tables_list_arch)
+  #   # tables <- load(inventory_arch)
+  #   # load(admin_arch)
+  #   # load(dictionary_arch, db)
+  # })
+  
+  # output$data <- renderDataTable({
+  #   data.frame(
+  #     repAFI = rv$rep_pdf,
+  #     disp = rv$disp,
+  #     disp_num = rv$disp_num,
+  #     last_cycle = rv$last_cycle,
+  #     last_year = rv$last_year
+  #   )
+  #   # rep
+  # })
+  
+  output$text <- renderPrint({
+    # rv$repAFI
+    input$stand_select
+    # wd()
+  })
+  
+  # reactive expression - répertoire de travail 'wd'
+  wd <- reactive( parseDirPath(ui_volumes, input$directory) )
+  
+  # reactive values -----
+  # rv <- reactiveValues()
+  
+  # react to input$directory - doublon avec wd() reactive expression
+  # observeEvent(input$directory, {
+  #   # sécurité pour éviter trigger pendant que sélection du répertoire est en cours
+  #   if (!is.null(wd()) & length(wd()) != 0) {
+  #     
+  #     # -- chemin du répertoire administrateur
+  #     rv$repAFI <- parseDirPath(ui_volumes, input$directory)
+  #     # print(paste0("repAFI = ", rv$repAFI)) # debug
+  #     # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #   }
+  # }, ignoreInit = TRUE)
+  
+  # react to input$directory
+  observeEvent(input$load_data, {
+    # sécurité répertoire administrateur
+    if (is.null(wd()) | !length(wd())) { # cond 'is.null(wd()) | !length(wd())'
+      show_alert(
+        title = i18n()$t("Aucun répertoire administrateur sélectionné"),
+        text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
+        type = "error"
+      )
+    } else { # else of cond 'is.null(wd()) | !length(wd())'
+      
+      # -- chargement des données
+      # sécurité présence du répertoire tables
+      if (!"tables" %in% list.files(wd())) { # cond '!"tables" %in% list.files(wd())'
+        show_alert(
+          title = i18n()$t("Dossier 'tables' manquant"),
+          text = i18n()$t("Il doit exister un dossier 'tables' contenant les archives des données inventaire et administrateur"),
+          type = "error"
+        )
+        # dir.create(file.path(repAFI, "tables"), showWarnings = F)
+      } else { # else of cond '!"tables" %in% list.files(wd())'
+        
+        # -- sécurité présence des Rdata nécessaires
+        all_arch_present <- 1
+        missing_arch <- arch_list[ which(!arch_list %in% list.files(file.path(wd(), "tables"))) ]
+        if (length(missing_arch) > 0) { # cond 'length(missing_arch) > 0'
+          all_arch_present <- 0
+          if (length(missing_arch) == 1) {
+            show_alert(
+              title = i18n()$t("Archive des données d'inventaire manquantes"),
+              text = paste0(
+                i18n()$t("Import/copie de fichiers nécessaire : l'archive "), 
+                missing_arch, 
+                i18n()$t(" doit figurer dans le dossier 'tables' pour pouvoir traiter les données.")
+              ),
+              type = "error"
+            )
+          }
+          if (length(missing_arch) > 1) {
+            show_alert(
+              title = i18n()$t("Archives des données d'inventaire manquantes"),
+              text = paste0(
+                i18n()$t("Import/copie de fichiers nécessaire : les archives"), 
+                missing_arch, 
+                i18n()$t("doivent figurer dans le dossier 'tables' pour pouvoir traiter les données.")
+              ),
+              type = "error"
+            )
+          }
+        } # end of cond 'length(missing_arch) > 0'
+        
+        # bascule la valeur 'all_arch_present' dans la reactive value
+        # -> évite de tout reload les dependents avec les tests de sécurité ci-dessus
+        rv$all_arch_present <- all_arch_present 
+        
+        if (rv$all_arch_present) { # cond 'all_arch_present'
+          
+          # -- stands list
+            # stand num list
+            all_num_list <- sort( as.numeric( unique(data()[["IdArbres"]]$NumDisp) ) )
+            
+          # browser()
+          admin <- data()[["Dispositifs"]] %>% filter(NumDisp %in% all_num_list)
+            
+            # stand label list & build rv
+            if (is.element(NA, all_num_list)) warning("NumDisp vide d\u00E9tect\u00E9")
+            rv$all_disp_list <<- paste0(
+              all_num_list, "-", admin$Nom[match(all_num_list, admin$NumDisp)]
+            )
+            
+            # debug
+            # print(paste0("tables_list_rdata = ", rv$tables_list_rdata)) # debug
+            # print(paste0("inventory_rdata = ", rv$inventory_rdata)) # debug
+            # print(paste0("admin_rdata = ", rv$admin_rdata)) # debug
+            # print(paste0("dictionary_rdata = ", rv$dictionary_rdata)) # debug
+          # print(paste0("all_disp_list = ", paste0(rv$all_disp_list[1:3], collapse = ", "))) # debug
+        } else { # else of cond 'all_arch_present'
+          rv$all_disp_list <- NULL
+        } # end of cond 'all_arch_present'
+      } # end of cond '!"tables" %in% list.files(wd())'
+    } # end of cond 'is.null(wd()) | !length(wd())'
+  }) # end of 'observeEvent(input$load_data'
+  
+  # react to input$stand_select
+  observeEvent(input$stand_select, {
+
+    # trigger security
+    if (input$stand_select != "") { # cond 'input$stand_select != ""' - trigger security
+      
+      # -- définition du répertoire de travail (TODO : argument à supprimer ?)
+      rv$repAFI <- wd()
+      
+      # -- gestion des noms et num du dispositif
+      # TODO : faire le tri des éléments à rendre vraiment réactifs
+      rv$disp <- input$stand_select
+      rv$disp_num <- as.numeric(str_sub(rv$disp, 1, str_locate(rv$disp, "-")[, 1] - 1))
+      # print(paste0("repAFI = ", wd())) # debug
+      rv$disp_name <-
+        with(data()[["Dispositifs"]], Nom[match(rv$disp_num, NumDisp)])
+      # browser()
+      # -- arguments relatifs au dispositif
+      rv$last_cycle <-
+        with(data()[["Cycles"]], max(Cycle[NumDisp == rv$disp_num], na.rm = T))
+      rv$last_year <-
+        with(data()[["Cycles"]], Annee[NumDisp == rv$disp_num & Cycle == rv$last_cycle])
+
+      if (length(rv$last_year) > 1) {
+        stop("Correction du classeur administrateur nécessaire : il y a 2 années identiques renseignées dans la feuille Cycles")
+      }
+
+      # -- création du dossier de sortie
+      rv$output_dir <- file.path("out", clean_names(rv$disp))
+
+      # -- définition des arguments nécessaires au knit
+      rv$rep_logos <- file.path(wd(), "data/images/logos")
+      
+      rv$rep_pdf$check_report <- file.path(wd(), rv$output_dir, "rapport_verif")
+      rv$rep_pdf$AFI_report <- file.path(wd(), rv$output_dir, "livret_AFI")
+      
+      rv$rep_figures$check_report <- file.path(rv$rep_pdf$check_report, "figures/")
+      rv$rep_figures$AFI_report <- file.path(rv$rep_pdf$AFI_report, "figures/")
+      
+      rv$rep_sav$check_report <- dirname(rv$rep_pdf$check_report)
+      rv$rep_sav$AFI_report <- dirname(rv$rep_pdf$AFI_report)
+
+      # chemin du template (absolute path)
+      rv$template_path$check_report <- file.path(wd(), "template/afi_check_data_2021.Rnw")
+      rv$template_path$AFI_report <- file.path(wd(), "template/afi_Livret_2020_shiny_work.Rnw")
+      
+      # nom de la sortie en .tex
+      # rv$output_filename$check_report <- paste0(rv$disp_num, "_verif_", rv$last_year, ".tex")
+      rv$output_filename$check_report <- 
+        file.path( rv$rep_pdf$check_report, paste0(rv$disp_num, "_verif_", rv$last_year, ".tex") )
+      # rv$output_filename$AFI_report <- paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex")
+      rv$output_filename$AFI_report <- 
+        file.path( rv$rep_pdf$AFI_report, paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex") )
+
+      # debug
+      # print(paste0("rep_pdf = ", rv$rep_pdf)) # debug
+      # print(paste0("rep_logos = ", rv$rep_logos)) # debug
+      # print(paste0("rep_figures = ", rv$rep_figures)) # debug
+      # print(paste0("rep_figures (check report) = ", rv$rep_figures$check_report)) # debug
+      # print(paste0("rep_figures (livret AFI) = ", rv$rep_figures$AFI_report)) # debug
+      # print(paste0("rep_sav = ", rv$rep_sav)) # debug
+      # print(paste0("output_dir = ", rv$output_dir)) # debug
+      # print(paste0("template_path = ", rv$template_path)) # debug
+      # print(paste0("lang = ", rv$lang)) # debug
+      # print(rv$output_filename$AFI_report) # debug
+      # print(rv$output_filename$check_report) # debug
+    } # end of cond 'input$stand_select != ""' - trigger security
+  }, ignoreInit = T)
+    
+
+
+ # A VOIR
+  #   # -- création du dossier de sortie
+  #   dir.create(output_dir, showWarnings = F, recursive = T)
+  # 
+  #   # -- définition des arguments nécessaires au knit
+  # 
+  #   # -- superassignements
+  #   # # répertoire de sauvegarde pour les tables spécifiques du dispositif
+  #   # rep_sav <<- dirname(repPdf)
+  #   # nom de la sortie en .tex
+  #   output_filename <- paste0(disp_num, "_livret-AFI_", last_year, ".tex")
+  #   output <<- file.path(repPdf, output_filename)
+  # })
+  
+  data_set <- reactive({stand_updated <- paste0(input$stand_select, "coucou")})
+  
+  # edit AFI report
+  output$AFI_report = downloadHandler(
+    filename = function() {
+      paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".pdf")
+    },
+    
+    content = function(file) {
+      # sécurité répertoire administrateur
+      if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+        show_alert(
+          title = i18n()$t("Aucun répertoire administrateur sélectionné"),
+          text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
+          type = "error"
+        )
+      } else {
+      # TEST = data_set()
+      # rep <- rv$repAFI
+      # tk_messageBox(type = "ok", message = rv$template_path) # debug
+      # chargement des archives nécessaires au knit
+      # load( file.path(rv$rep_sav, "tables/afiTablesBrutes.Rdata") )
+      # load( file.path(rv$rep_sav, "tables/afiTablesElaboreesPlac.Rdata") )
+      # for(i in 1:length(results_by_plot)) {assign(names(results_by_plot)[i], results_by_plot[[i]])}
+      # load( file.path(rv$rep_sav, "/tables/afiTablesElaborees.Rdata") )
+      # for(i in 1:length(results_by_group)) {assign(names(results_by_group)[i], results_by_group[[i]])}
+      
+      # TODO : filtrer les tables (avec "filter_by_disp" ?)
+      
+      out = knit2pdf(
+        input = rv$template_path$AFI_report, 
+        output = rv$output_filename$AFI_report,
+        compiler = "pdflatex",
+        quiet = TRUE,
+        # envir = data(), si data() choisi comme environnement, rajouter les éléments manquants à l'environnement data -> mieux définir figures (avec adresse de rep_pdf), i18n et sans doute d'autres
+        clean = TRUE
+      )
+      file.rename(out, file) # move pdf to file for downloading
+      }
+    },
+    
+    contentType = 'application/pdf'
+  )
+  
+  # boutons pour choisir les annexes du livret
+  output$import_data_box <- renderUI({
+    box(
+      title = i18n()$t("Import des données"),
+      status = "primary",
+      solidHeader = TRUE,
+      collapsible = TRUE,
+      collapsed = TRUE, # FALSE
+      width = 12,
+      
+      # -- column 'admin data import'
+      column(
+        width = 12,
+        style = "display:inline-block;width:50%",
+        
+        div(
+          # -- text 'import des données administrateur'
+          column(
+            width = 12,
+            # div(
+            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+            strong(i18n()$t("Import des données administrateur :"))
+            # ),
+          ),
+          
+          # -- bouton 'import des données administrateur'
+          column(
+            width = 12,
+            style = "display:inline-block;width:150pt",
+            actionButton(
+              inputId = "import_admin_data", 
+              label = i18n()$t("Importer les données"),
+              width = "135pt"
+            )
+          )
+        ),
+        
+        # -- bouton 'sélection des fichiers administrateurs'
+        column(
+          style = "display:inline-block;width:100%;padding:-10pt",
+          # style = "display:inline-block;border:1px solid;width:100%;",
+          width = 12,
+          shinyFilesButton(
+            id = "select_admin_files",
+            label = i18n()$t("Sélection des fichiers administrateurs"),
+            title = NULL,
+            multiple = TRUE
+          )
+        )
+      ),
+      
+      # -- column 'inventory data import'
+      column(
+        width = 12,
+        style = "display:inline-block;width:50%",
+        
+        div(
+          # -- text 'import des données d'inventaire'
+          column(
+            width = 12,
+            # div(
+            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+            strong(i18n()$t("Import des données d'inventaire :"))
+            # ),
+          ),
+          
+          # -- bouton 'import des données d'inventaire'
+          column(
+            width = 12,
+            style = "display:inline-block;width:150pt",
+            actionButton(
+              inputId = "import_inventory_data", 
+              label = i18n()$t("Importer les données"),
+              width = "135pt"
+            )
+          )
+        ),
+        
+        # -- bouton 'sélection des fichiers d'inventaire'
+        column(
+          style = "display:inline-block;width:100%;",
+          # style = "display:inline-block;border:1px solid;width:100%;",
+          width = 12,
+          shinyFilesButton(
+            id = "select_inventory_files",
+            label = i18n()$t("Sélection des fichiers d'inventaire"),
+            title = NULL,
+            multiple = TRUE
+          )#,
+          # verbatimTextOutput("directorypath")
+        )
+      )
+    )
+  })
+  
+  # reactive value containing all parameters used to process results + edit AFI report
+  
+}
