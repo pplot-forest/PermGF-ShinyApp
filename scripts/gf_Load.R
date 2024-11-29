@@ -1,12 +1,12 @@
 rm(list = ls())
 
 # répertoire administrateur :
-repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI-ShinyApp"
-setwd(repAFI)
-repSav <- repAFI
+repGF <- "/Users/Valentin/Travail/Outils/GitHub/PermGF-ShinyApp"
+setwd(repGF)
+repSav <- repGF
 
 
-# ----- Librairies nécessaires à l'utilisation de PermAFI
+# ----- Librairies nécessaires à l'utilisation de PermGF
 # Cas particulier : première utilisation -installation du package "easypackages"
 # install.packages("easypackages")
 
@@ -20,7 +20,7 @@ library(easypackages)
     "rgeos", "rgdal", "gdata", "grid", "fmsb", "rlang"
   )
 # )
-# library(PermAFI)
+# library(PermGF)
 
   # depo = "inst"
   depo = "scripts"
@@ -28,38 +28,38 @@ library(easypackages)
   # chargement du script annexes
   source(file.path(file.path(depo, "annexes.R")), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 1
-  source(file.path(depo, "afi_CodesTranslation.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path(depo, "gf_CodesTranslation.R"), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 2
-  # source(file.path("scripts/afi_XlsTranslation.R"), encoding = 'UTF-8', echo = TRUE)
+  # source(file.path("scripts/gf_XlsTranslation.R"), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 2
-  source(file.path(depo, "afi_XlsTranslation.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path(depo, "gf_XlsTranslation.R"), encoding = 'UTF-8', echo = TRUE)
   
   # # chargement du script job 3
-  source(file.path("scripts/afi_Verif.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path("scripts/gf_Verif.R"), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 4
-  source(file.path(depo, "afi_Calculs.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path(depo, "gf_Calculs.R"), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 5
-  source(file.path(depo, "afi_AgregArbres.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path(depo, "gf_AgregArbres.R"), encoding = 'UTF-8', echo = TRUE)
   # chargement du script job 6
-  source(file.path(depo, "afi_AgregPlacettes.R"), encoding = 'UTF-8', echo = TRUE)
+  source(file.path(depo, "gf_AgregPlacettes.R"), encoding = 'UTF-8', echo = TRUE)
   # # chargement du script job 7
-  # source(file.path("scripts/afi_EditCarnet.R"), encoding = 'UTF-8', echo = TRUE)
+  # source(file.path("scripts/gf_EditCarnet.R"), encoding = 'UTF-8', echo = TRUE)
   
   
   
   
   
 
-##### ----- AFI data processing - MAJ PermAFI2----- #####
+##### ----- AFI data processing - MAJ PermGF2----- #####
   
   # arguments shiny
   rv <- list()
   db <- new.env()
   # db = global_env() # debug
-  load("tables/afiCodes.Rdata", envir = db)
+  load("tables/gfCodes.Rdata", envir = db)
   with(db, {
     rv <- list(
-      repAFI = "/Users/Valentin/Travail/Outils/GitHub/PermAFI-ShinyApp",
+      repGF = "/Users/Valentin/Travail/Outils/GitHub/PermGF-ShinyApp",
       # lang = "Deutsch", # choisir la langue du fichier d'import
       # lang = "Français",
       lang = "English",
@@ -68,7 +68,7 @@ library(easypackages)
     # -- gestion des noms et num du dispositif
     # TODO : faire le tri des éléments à rendre vraiment réactifs
     # rv$disp_num <- as.numeric(str_sub(rv$disp, 1, str_locate(rv$disp, "-")[, 1] - 1))
-    # print(paste0("repAFI = ", repAFI)) # debug
+    # print(paste0("repGF = ", repGF)) # debug
     rv$disp_name <-
       with(db[["Dispositifs"]], Nom[match(rv$disp_num, NumDisp)])
     rv$disp <- paste0(rv$disp_num, "-", clean_names(rv$disp_name))
@@ -87,14 +87,14 @@ library(easypackages)
     rv$output_dir <- file.path("out", clean_names(rv$disp), "livret_AFI")
     
     # -- définition des arguments nécessaires au knit
-    rv$rep_pdf <- file.path(repAFI, rv$output_dir)
-    rv$rep_logos <- file.path(repAFI, "data/images/logos/")
+    rv$rep_pdf <- file.path(repGF, rv$output_dir)
+    rv$rep_logos <- file.path(repGF, "data/images/logos/")
     rv$rep_figures <- file.path(rv$rep_pdf, "figures/")
     rv$repSav <- dirname(rv$rep_pdf)
     
     # chemin du template (absolute path)
-    # rv$template_path <- file.path(repAFI, "template/afi_Livret_2020_shiny_work.Rnw")
-    rv$template_path <- file.path(repAFI, "template/appendice_carbon/appendice_carbon.Rnw")
+    # rv$template_path <- file.path(repGF, "template/gf_Livret_2020_shiny_work.Rnw")
+    rv$template_path <- file.path(repGF, "template/appendice_carbon/appendice_carbon.Rnw")
     # nom de la sortie en .tex
     rv$output_filename <- paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex")
     # rv$output_filename <- paste0(rv$disp_num, "_annexe_carbone_AFI_", rv$last_year, ".tex")
@@ -103,8 +103,8 @@ library(easypackages)
   })
   complete_progress = 185 # barre de progression
   
-  # translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermAFI2", "translations/translation_test.json"))
-  translator <- shiny.i18n::Translator$new(translation_json_path = file.path(repAFI, "www/translations/translation.json"))
+  # translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermGF2", "translations/translation_test.json"))
+  translator <- shiny.i18n::Translator$new(translation_json_path = file.path(repGF, "www/translations/translation.json"))
   translator$set_translation_language(rv$lang)
   # -- i18n reactive function
   i18n <- function() {
@@ -123,17 +123,17 @@ library(easypackages)
     "data/excel/admin/AFI_Codifications.xlsx", # TODO : put Codification on pcloud (+ PUvar, DensiteBoisMort, ...)
     "data/excel/admin/AFI_Economie_220831.xlsx"
   )
-  files_list <- file.path(repAFI, files_list)
+  files_list <- file.path(repGF, files_list)
 
 # lancement
-# Attention : il faut sourcer le script afi_XlsTranslation.R pour avoir la fonction read_xlsx
-afi_CodesTranslation(wd = repAFI, files_list = files_list, i18n = i18n)
+# Attention : il faut sourcer le script gf_XlsTranslation.R pour avoir la fonction read_xlsx
+gf_CodesTranslation(wd = repGF, files_list = files_list, i18n = i18n)
 ###### /\ #####
 
 ##### Job 2 : import des données d'inventaire #####
 # argument(s) d'entrée
 # files_list <- tk_choose.files(multi = T)
-files_list <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/out/147-Landeswald_Lubben/translation/147-Landeswald_Lubben_FRA.xlsx"
+files_list <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2/out/147-Landeswald_Lubben/translation/147-Landeswald_Lubben_FRA.xlsx"
 files_list <- file.path("data/excel/inventaires", c(
   # # 2023
   # "110-Forêt Communale de Lacoste.xlsx",
@@ -219,13 +219,13 @@ files_list <- file.path("data/excel/inventaires", c(
 # ))
 
 # lancement
-# afi_XlsTranslation(wd = repAFI, files_list, i18n = i18n) # traitement courant
+# gf_XlsTranslation(wd = repGF, files_list, i18n = i18n) # traitement courant
 
 # import de toute la base AFI - sélectionner les fichiers avec 
 # fenêtre de dialogue puis appeler fonction d'import en précisant 
 # trad = T en argument d'entrée
 # -- N.B  : pour afficher la liste des fichiers (save dans un objet)
-  #=> call = 'cat(paste0( str_remove(files_list, paste0(repAFI, "/")), collapse = "', \n'"))'
+  #=> call = 'cat(paste0( str_remove(files_list, paste0(repGF, "/")), collapse = "', \n'"))'
 # files_list <- c(
 #   "data/excel/inventaires/1-Bois des Brosses.xlsx", 
 #   "data/excel/inventaires/2-Bois du Chanois.xlsx", 
@@ -366,13 +366,13 @@ files_list <- file.path("data/excel/inventaires", c(
 #   "data/excel/inventaires/161-Forêt de Lencouacq.xlsx", 
 #   "data/excel/inventaires/162-Bois de Berrieux.xlsx"
 # )
-afi_XlsTranslation(wd = repAFI, files_list, i18n = i18n)
+gf_XlsTranslation(wd = repGF, files_list, i18n = i18n)
 
 #
 # ##### Vérifications de la BD AFI globale - projet document technique #####
 # # -- chargement des données
-# load("tables/afiDonneesBrutes.Rdata")
-# load("tables/afiCodes.Rdata")
+# load("tables/gfDonneesBrutes.Rdata")
+# load("tables/gfCodes.Rdata")
 # 
 # # -- vérifications des stades de BM
 # codes_stades <- expand.grid(c(1:4), c(1:5)) %>% mutate(Stade = paste0(Var1, Var2))
@@ -395,30 +395,30 @@ afi_XlsTranslation(wd = repAFI, files_list, i18n = i18n)
 #   
 # # Réécriture de la base AFI sous la forme d'1 classeur Excel pour corrections
 # # arguments :
-# # disp_list <- cf script afi_Calculs
+# # disp_list <- cf script gf_Calculs
 # disp_2_edit <- disp_list
 # 
-# afi_rewrite_disp(
-#   repAFI, disp_2_edit, to_LANG, dir_LANG,
-#   output_dir = file.path(repAFI, "tables")
+# gf_rewrite_disp(
+#   repGF, disp_2_edit, to_LANG, dir_LANG,
+#   output_dir = file.path(repGF, "tables")
 # )
 # ##### /\ #####
 
 ##### Job 3 : vérification des données #####
 # lancement
-afi_Verif(repAFI)
+gf_Verif(repGF)
 ##### /\ #####
 
 ##### Job 4 : calcul des résultats par arbre #####
-# argument(s) d'entrée : repAFI, repSav, ... (-> default)
+# argument(s) d'entrée : repGF, repSav, ... (-> default)
 # lancement
-# afi_Calculs(repAFI) # ancienne version - sans shiny
+# gf_Calculs(repGF) # ancienne version - sans shiny
 
 # call function
-afi_Calculs(
-  wd = rv$repAFI, 
+gf_Calculs(
+  wd = rv$repGF, 
   # output_dir = rv$repSav,
-  output_dir = rv$repAFI,
+  output_dir = rv$repGF,
   # disp = rv$disp,
   disp = NULL,
   # last_cycle = rv$last_cycle,
@@ -426,15 +426,15 @@ afi_Calculs(
   complete_progress = complete_progress,
   i18n = i18n
 )
-# # AG AFI 2021 - changer code afi_Calculs en amont
-# afi_Calculs(
-#   wd = rv$repAFI,
-#   output_dir = rv$repAFI
+# # AG AFI 2021 - changer code gf_Calculs en amont
+# gf_Calculs(
+#   wd = rv$repGF,
+#   output_dir = rv$repGF
 # )
 
 
 # -- vérifications des qualités
-load("tables/afiTablesBrutes.Rdata")
+load("tables/gfTablesBrutes.Rdata")
 codes_qual <- Qual$Nom
 
 df <- 
@@ -447,89 +447,89 @@ write.xlsx(df, file = "unknown_qual.xlsx")
 ##### tables nécessaires pour l'édition du livret AFI #####
 # setup
 tables_list <- c(
-  "afiDispFpied_Qual2", "afiDispBM_", "afiDispBMP_", "afiDispBMS_", 
-  "afiDispBM_Essence", "afiDispBM_EssenceClasse", 
-  "afiDispBMP_CodeEcolo", "afiDispBMP_EssenceCodeEcolo", "afiDispBMP_ClasseCodeEcolo", "afiDispBMP_CatCodeEcolo",
-  "afiDispBM_StadeD", "afiDispBM_StadeDStadeE", "afiDispBM_StadeE", 
-  "afiDispBMP_Classe", "afiDispBMP_ClasseType", "afiDispBMS_Classe",
-  "afiDispBMP_EssenceCat", "afiDispBMS_EssenceCat",
-  "afiDispBMP_Essence", "afiDispBMS_Essence",
-  "afiDispBMP_Cat", "afiDispBMS_Cat",
-  "afiDispBMS_ClasseStadeD", "afiDispBMP_ClasseStadeD", 
-  "afiDispBMS_ClasseStadeE", "afiDispBMP_ClasseStadeE", 
-  "afiDispCodes_", "afiDispCodes_Cat", "afiDispCodes_CodeEcolo", "afiDispCodes_CatCodeEcolo", 
-  "afiDispFpied_", "afiDispFpied_Essence", "afiDispFpied_", 
-  "afiDispFpied_Cat", "afiDispFpied_Classe", "afiDispFpied_ClasseQual", 
-  "afiDispFpied_Essence", "afiDispFpied_EssenceCat", "afiPlaFpied_EssReg", 
+  "gfDispFpied_Qual2", "gfDispBM_", "gfDispBMP_", "gfDispBMS_", 
+  "gfDispBM_Essence", "gfDispBM_EssenceClasse", 
+  "gfDispBMP_CodeEcolo", "gfDispBMP_EssenceCodeEcolo", "gfDispBMP_ClasseCodeEcolo", "gfDispBMP_CatCodeEcolo",
+  "gfDispBM_StadeD", "gfDispBM_StadeDStadeE", "gfDispBM_StadeE", 
+  "gfDispBMP_Classe", "gfDispBMP_ClasseType", "gfDispBMS_Classe",
+  "gfDispBMP_EssenceCat", "gfDispBMS_EssenceCat",
+  "gfDispBMP_Essence", "gfDispBMS_Essence",
+  "gfDispBMP_Cat", "gfDispBMS_Cat",
+  "gfDispBMS_ClasseStadeD", "gfDispBMP_ClasseStadeD", 
+  "gfDispBMS_ClasseStadeE", "gfDispBMP_ClasseStadeE", 
+  "gfDispCodes_", "gfDispCodes_Cat", "gfDispCodes_CodeEcolo", "gfDispCodes_CatCodeEcolo", 
+  "gfDispFpied_", "gfDispFpied_Essence", "gfDispFpied_", 
+  "gfDispFpied_Cat", "gfDispFpied_Classe", "gfDispFpied_ClasseQual", 
+  "gfDispFpied_Essence", "gfDispFpied_EssenceCat", "gfPlaFpied_EssReg", 
   
-  "afiDispFpied_EssReg", "afiDispFpied_EssRegClasse", 
-  "afiDispFpied_ClasseQual1", "afiDispFpied_ClasseQual1", 
-  "afiDispFpied_Qual1", "afiDispFpied_EssenceQual1", "afiDispFpied_EssRegQual1", 
-  "afiDispFpied_CatQual1", "afiDispPer_Qual1", "afiPlaPer_EssRegClasseQual1", 
-  "afiDispPer_EssRegClasse", "afiDispPer_ClasseQual1", "afiDispTaillis_EssRegClasse", 
-  "afiDispFpied_EssRegCat", "afiDispFpied_ClasseQual1", 
-  "afiDispFpied_EssenceCat", "afiDispFpied_EssenceClasseQual1", "afiDispFpied_Cat", 
-  "afiDispFpied_CatCodeEcolo", "afiDispBM_EssRegClasse", 
+  "gfDispFpied_EssReg", "gfDispFpied_EssRegClasse", 
+  "gfDispFpied_ClasseQual1", "gfDispFpied_ClasseQual1", 
+  "gfDispFpied_Qual1", "gfDispFpied_EssenceQual1", "gfDispFpied_EssRegQual1", 
+  "gfDispFpied_CatQual1", "gfDispPer_Qual1", "gfPlaPer_EssRegClasseQual1", 
+  "gfDispPer_EssRegClasse", "gfDispPer_ClasseQual1", "gfDispTaillis_EssRegClasse", 
+  "gfDispFpied_EssRegCat", "gfDispFpied_ClasseQual1", 
+  "gfDispFpied_EssenceCat", "gfDispFpied_EssenceClasseQual1", "gfDispFpied_Cat", 
+  "gfDispFpied_CatCodeEcolo", "gfDispBM_EssRegClasse", 
   
-  "afiDispFpied_EssenceClasse", "afiDispFpied_EssenceCoupe", 
-  "afiDispFpied_CatQual1", "afiDispPer_EssenceClasse", 
-  "afiPlaPer_EssenceClasseQual1", "afiDispFpied_ClasseCodeEcolo", 
-  "afiDispFpied_ClasseQual1CodeEcolo", "afiDispCodes_EssenceCodeEcolo", 
-  "afiDispFpied_CatCoupe", "afiDispFpied_Coupe", "afiDispFpied_cat", 
+  "gfDispFpied_EssenceClasse", "gfDispFpied_EssenceCoupe", 
+  "gfDispFpied_CatQual1", "gfDispPer_EssenceClasse", 
+  "gfPlaPer_EssenceClasseQual1", "gfDispFpied_ClasseCodeEcolo", 
+  "gfDispFpied_ClasseQual1CodeEcolo", "gfDispCodes_EssenceCodeEcolo", 
+  "gfDispFpied_CatCoupe", "gfDispFpied_Coupe", "gfDispFpied_cat", 
   
-  "afiDispRege_Rejet", "afiDispRege_EssenceRejet", 
+  "gfDispRege_Rejet", "gfDispRege_EssenceRejet", 
   
-  # "afiDispRege_EssenceValideRejet", "afiDispRege_ValideRejet", 
+  # "gfDispRege_EssenceValideRejet", "gfDispRege_ValideRejet", 
   
-  "afiDispPer_EssenceQual2", "afiDispPer_Qual2", "afiDispFpied_Qual2", 
-  "afiDispFpied_Classe", "afiDispFpied_EssenceClasse", 
-  "afiDispBM_Classe", 
+  "gfDispPer_EssenceQual2", "gfDispPer_Qual2", "gfDispFpied_Qual2", 
+  "gfDispFpied_Classe", "gfDispFpied_EssenceClasse", 
+  "gfDispBM_Classe", 
   
-  "afiDispFpied_CodeEcolo", "afiDispFpied_CodeEcolo", 
+  "gfDispFpied_CodeEcolo", "gfDispFpied_CodeEcolo", 
   
-  "afiDispFpied_CatQual2CodeEcolo", 
-  "afiDispFpied_Qual2CodeEcolo", "afiDispFpied_EssenceCodeEcolo", 
-  "afiDispFpied_EssenceCodeEcolo", 
-  "afiDispFpied_CatCoupe", "afiDispFpied_Coupe", 
+  "gfDispFpied_CatQual2CodeEcolo", 
+  "gfDispFpied_Qual2CodeEcolo", "gfDispFpied_EssenceCodeEcolo", 
+  "gfDispFpied_EssenceCodeEcolo", 
+  "gfDispFpied_CatCoupe", "gfDispFpied_Coupe", 
   
-  "afiDispFpied_EssRegCoupe", "afiDispFpied_CatCoupe", "afiDispFpied_Qual2Coupe", 
+  "gfDispFpied_EssRegCoupe", "gfDispFpied_CatCoupe", "gfDispFpied_Qual2Coupe", 
   
-  "afiDispFpied_EssenceCatCoupe", "afiDispFpied_CatQual2Coupe", # pour PF
+  "gfDispFpied_EssenceCatCoupe", "gfDispFpied_CatQual2Coupe", # pour PF
   
-  "afiDispFpied_ClasseCodeEcolo", "afiDispFpied_CatQual2CodeEcolo", 
-  "afiDispFpied_Qual2CodeEcolo", "afiDispFpied_EssenceCodeEcolo", 
-  "afiDispFpied_EssenceCodeEcolo", "afiDispFpied_CatCodeEcolo", 
+  "gfDispFpied_ClasseCodeEcolo", "gfDispFpied_CatQual2CodeEcolo", 
+  "gfDispFpied_Qual2CodeEcolo", "gfDispFpied_EssenceCodeEcolo", 
+  "gfDispFpied_EssenceCodeEcolo", "gfDispFpied_CatCodeEcolo", 
   
-  # "afiDispFpied_Couvert", 
+  # "gfDispFpied_Couvert", 
   
-  # "afiDispFpied_EssRegParCat", 
-  "afiDispPer_", "afiDispPer_Essence", "afiDispPer_EssReg", "afiDispPer_Classe", 
-  # "afiDispHabitatBM_", "afiDispHabitatBM_StadeD", "afiDispHabitatBMP_", 
-  # "afiDispHabitatBMS_", "afiDispHabitatFpied_", 
-  # "afiDispHabitatFpied_Classe", "afiDispHabitatTaillis_", 
-  # "afiDispHabitatTaillis_Classe", 
-  "afiDispRege_Essence", 
-  # "afiDispRege_EssRegPar", 
-  "afiDispTaillis_", "afiDispTaillis_Classe", 
-  "afiDispTaillis_Essence", "afiDispTaillis_EssenceClasse", 
-  # "afiDispTot_", "afiDispTot_Cat", 
-  # "afiDispTot_CatCodeEcolo", "afiDispTot_Essence", 
-  # "afiDispTot_EssenceClasse", 
-  # "afiDispTot_EssRegParCat", 
-  "afiPlaFpied_", "afiPlaFpied_CatQual", 
-  "afiPlaFpied_Cat", "afiPlaTaillis_Cat", "afiPlaTaillis_", 
+  # "gfDispFpied_EssRegParCat", 
+  "gfDispPer_", "gfDispPer_Essence", "gfDispPer_EssReg", "gfDispPer_Classe", 
+  # "gfDispHabitatBM_", "gfDispHabitatBM_StadeD", "gfDispHabitatBMP_", 
+  # "gfDispHabitatBMS_", "gfDispHabitatFpied_", 
+  # "gfDispHabitatFpied_Classe", "gfDispHabitatTaillis_", 
+  # "gfDispHabitatTaillis_Classe", 
+  "gfDispRege_Essence", 
+  # "gfDispRege_EssRegPar", 
+  "gfDispTaillis_", "gfDispTaillis_Classe", 
+  "gfDispTaillis_Essence", "gfDispTaillis_EssenceClasse", 
+  # "gfDispTot_", "gfDispTot_Cat", 
+  # "gfDispTot_CatCodeEcolo", "gfDispTot_Essence", 
+  # "gfDispTot_EssenceClasse", 
+  # "gfDispTot_EssRegParCat", 
+  "gfPlaFpied_", "gfPlaFpied_CatQual", 
+  "gfPlaFpied_Cat", "gfPlaTaillis_Cat", "gfPlaTaillis_", 
   
-  "afiDispPFutaie_", "afiDispPFutaie_Essence", "afiDispPFutaie_Classe", "afiDispPFutaie_Cat", 
-  "afiDispExploit_", "afiDispExploit_Essence", "afiDispExploit_Classe", "afiDispExploit_Cat", 
-  "afiDispExploit_EssenceCatQual2", 
+  "gfDispPFutaie_", "gfDispPFutaie_Essence", "gfDispPFutaie_Classe", "gfDispPFutaie_Cat", 
+  "gfDispExploit_", "gfDispExploit_Essence", "gfDispExploit_Classe", "gfDispExploit_Cat", 
+  "gfDispExploit_EssenceCatQual2", 
   
-  # "afiPlaTot_", "afiPlaTot_EssReg", "afiPlaTot_Cat", 
-  "afiPlaBM_", "afiPlaRege_",
+  # "gfPlaTot_", "gfPlaTot_EssReg", "gfPlaTot_Cat", 
+  "gfPlaBM_", "gfPlaRege_",
   
   
   
-  "afiDispCarbone_", "afiDispCarbone_Essence", "afiDispCarbone_Cat", "afiDispCarbone_Qual1",
-  "afiDispCarbone_Lifetime", "afiDispCarbone_EssenceLifetime", "afiDispCarbone_CatLifetime", "afiDispCarbone_Qual1Lifetime"
+  "gfDispCarbone_", "gfDispCarbone_Essence", "gfDispCarbone_Cat", "gfDispCarbone_Qual1",
+  "gfDispCarbone_Lifetime", "gfDispCarbone_EssenceLifetime", "gfDispCarbone_CatLifetime", "gfDispCarbone_Qual1Lifetime"
 ) %>% unique()
 save(tables_list, file = "tables/report_tables_list.Rdata")
 ##### /\ #####
@@ -537,12 +537,12 @@ save(tables_list, file = "tables/report_tables_list.Rdata")
 load("tables/report_tables_list.Rdata")
 results_by_plot_to_get <- build_combination_table(tables_list)
 
-# lancement # TODO : supprimer le message de jonction lors de l'exécution de afi_AgregArbres
-# afi_AgregArbres(repAFI, combination_table) # ancienne version - sans shiny
+# lancement # TODO : supprimer le message de jonction lors de l'exécution de gf_AgregArbres
+# gf_AgregArbres(repGF, combination_table) # ancienne version - sans shiny
 
 # call function
-afi_AgregArbres(
-  wd = rv$repAFI,
+gf_AgregArbres(
+  wd = rv$repGF,
   output_dir = rv$repSav,
   combination_table = results_by_plot_to_get,
   disp = rv$disp,
@@ -550,10 +550,10 @@ afi_AgregArbres(
   complete_progress = complete_progress,
   i18n = i18n
 )
-# AG AFI 2021 - changer code afi_Calculs en amont
-afi_AgregArbres(
-  wd = rv$repAFI,
-  output_dir = rv$repAFI,
+# AG AFI 2021 - changer code gf_Calculs en amont
+gf_AgregArbres(
+  wd = rv$repGF,
+  output_dir = rv$repGF,
   last_cycle = 6,
   combination_table = results_by_plot_to_get
 )
@@ -568,21 +568,21 @@ results_by_stand_to_get <- data.frame(
 )
 
 # lancement
-# afi_AgregPlacettes(repAFI, results_by_stand_to_get) # ancienne version - sans shiny
+# gf_AgregPlacettes(repGF, results_by_stand_to_get) # ancienne version - sans shiny
 
 # call function
-afi_AgregPlacettes(
-  wd = rv$repAFI,
+gf_AgregPlacettes(
+  wd = rv$repGF,
   output_dir = rv$repSav,
   combination_table = results_by_stand_to_get,
   disp = rv$disp, last_cycle = rv$last_cycle,
   complete_progress = complete_progress,
   i18n = i18n
 )
-# AG AFI 2021 - changer code afi_Calculs en amont
-afi_AgregPlacettes(
-  wd = rv$repAFI,
-  output_dir = rv$repAFI,
+# AG AFI 2021 - changer code gf_Calculs en amont
+gf_AgregPlacettes(
+  wd = rv$repGF,
+  output_dir = rv$repGF,
   combination_table = results_by_stand_to_get
 )
 ##### /\ #####
@@ -593,12 +593,12 @@ afi_AgregPlacettes(
 continue = T # permet de lancer l'édition du livret juste après l'import des données (appel des jobs 4, 5 et 6 incorporé)
 
 # lancement TODO : mettre une possibilité pour passer les jobs 4, 5 et 6 si archive déjà présente ?
-# afi_EditCarnet(repAFI, continue = T) # ancienne version - sans shiny
+# gf_EditCarnet(repGF, continue = T) # ancienne version - sans shiny
 
-# load( file.path(rv$repSav, "tables/afiTablesBrutes.Rdata") )
-# load( file.path(rv$repSav, "tables/afiTablesElaboreesPlac.Rdata") )
+# load( file.path(rv$repSav, "tables/gfTablesBrutes.Rdata") )
+# load( file.path(rv$repSav, "tables/gfTablesElaboreesPlac.Rdata") )
 # for(i in 1:length(results_by_plot)) {assign(names(results_by_plot)[i], results_by_plot[[i]])}
-# load( file.path(rv$repSav, "/tables/afiTablesElaborees.Rdata") )
+# load( file.path(rv$repSav, "/tables/gfTablesElaborees.Rdata") )
 # for(i in 1:length(results_by_group)) {assign(names(results_by_group)[i], results_by_group[[i]])}
 
 load("tables/report_tables_list.Rdata")
@@ -616,10 +616,10 @@ for (disp in disp_list) {
   rv <- list()
   db <- new.env()
   # db = global_env() # debug
-  load("tables/afiCodes.Rdata", envir = db)
+  load("tables/gfCodes.Rdata", envir = db)
   with(db, {
     rv <- list(
-      repAFI = "/Users/Valentin/Travail/Outils/GitHub/PermAFI-ShinyApp",
+      repGF = "/Users/Valentin/Travail/Outils/GitHub/PermGF-ShinyApp",
       # lang = "Deutsch", # choisir la langue du fichier d'import
       # lang = "Français",
       lang = "English",
@@ -629,7 +629,7 @@ for (disp in disp_list) {
     # -- gestion des noms et num du dispositif
     # TODO : faire le tri des éléments à rendre vraiment réactifs
     # rv$disp_num <- as.numeric(str_sub(rv$disp, 1, str_locate(rv$disp, "-")[, 1] - 1))
-    # print(paste0("repAFI = ", repAFI)) # debug
+    # print(paste0("repGF = ", repGF)) # debug
     rv$disp_name <-
       with(db[["Dispositifs"]], Nom[match(rv$disp_num, NumDisp)])
     rv$disp <- paste0(rv$disp_num, "-", clean_names(rv$disp_name))
@@ -648,22 +648,22 @@ for (disp in disp_list) {
     rv$output_dir <- file.path("out", clean_names(rv$disp), "livret_AFI")
     
     # -- définition des arguments nécessaires au knit
-    rv$rep_pdf <- file.path(repAFI, rv$output_dir)
-    rv$rep_logos <- file.path(repAFI, "data/images/logos/")
+    rv$rep_pdf <- file.path(repGF, rv$output_dir)
+    rv$rep_logos <- file.path(repGF, "data/images/logos/")
     rv$rep_figures <- file.path(rv$rep_pdf, "figures/")
     rv$repSav <- dirname(rv$rep_pdf)
     
     # chemin du template (absolute path)
-    rv$template_path <- file.path(repAFI, "template/afi_Livret_2020_shiny_work.Rnw")
-    # rv$template_path <- file.path(repAFI, "template/appendice_carbon/appendice_carbon.Rnw")
+    rv$template_path <- file.path(repGF, "template/gf_Livret_2020_shiny_work.Rnw")
+    # rv$template_path <- file.path(repGF, "template/appendice_carbon/appendice_carbon.Rnw")
     # nom de la sortie en .tex
     rv$output_filename <- paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex")
     # rv$output_filename <- paste0(rv$disp_num, "_annexe_carbone_AFI_", rv$last_year, ".tex")
     
     rv <<- rv
   })
-  # translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermAFI2", "translations/translation_test.json"))
-  translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermAFI2", "translations/translation.json"))
+  # translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermGF2", "translations/translation_test.json"))
+  translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermGF2", "translations/translation.json"))
   translator$set_translation_language(rv$lang)
   # -- i18n reactive function
   i18n <- function() {
@@ -671,10 +671,10 @@ for (disp in disp_list) {
   }
   
   ##### Job 4 : calcul des résultats par arbre #####
-  afi_Calculs(
-    wd = rv$repAFI,
+  gf_Calculs(
+    wd = rv$repGF,
     output_dir = rv$repSav,
-    # output_dir = rv$repAFI,
+    # output_dir = rv$repGF,
     disp = rv$disp,
     # disp = NULL,
     last_cycle = rv$last_cycle,
@@ -684,8 +684,8 @@ for (disp in disp_list) {
   )
 
   ##### Job 5 : agrégation des résultats par placettes #####
-  afi_AgregArbres(
-    wd = rv$repAFI,
+  gf_AgregArbres(
+    wd = rv$repGF,
     output_dir = rv$repSav,
     combination_table = results_by_plot_to_get,
     disp = rv$disp,
@@ -695,8 +695,8 @@ for (disp in disp_list) {
   )
 
   ##### Job 6 : agrégation des résultats par dispositif #####
-  afi_AgregPlacettes(
-    wd = rv$repAFI,
+  gf_AgregPlacettes(
+    wd = rv$repGF,
     output_dir = rv$repSav,
     combination_table = results_by_stand_to_get,
     disp = rv$disp, last_cycle = rv$last_cycle,
@@ -706,19 +706,19 @@ for (disp in disp_list) {
 
   ##### Job 7 : édition du livret d'analyse #####
   # TODO : filtrer les tables (avec "filter_by_disp" ?)
-  wd <- function() {rv$repAFI} # define wd() pour lancement manuel
+  wd <- function() {rv$repGF} # define wd() pour lancement manuel
   # rv$lang <- "Deutsch"
   dir.create(rv$rep_pdf, showWarnings = F, recursive = T)
   # out = knit2pdf(
   #   input = rv$template_path,
-  #   output = file.path(rv$rep_pdf, rv$output_filename), # lancement afi_Load
+  #   output = file.path(rv$rep_pdf, rv$output_filename), # lancement gf_Load
   #   # output = rv$output_filename, # lancement shiny
   #   # envir = db,
   #   clean = TRUE
   # )
   out = knit2pdf(
     input = rv$template_path,
-    output = file.path(rv$rep_pdf, rv$output_filename), # lancement afi_Load
+    output = file.path(rv$rep_pdf, rv$output_filename), # lancement gf_Load
     # output = rv$output_filename, # lancement shiny
     # envir = db,
     clean = TRUE
@@ -730,64 +730,64 @@ for (disp in disp_list) {
 
 ##### Job 8 : édition du classeur de résultats #####
 # chargement du script
-source(file.path(depo, "afi_Tables2Xls.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path(depo, "gf_Tables2Xls.R"), encoding = 'UTF-8', echo = TRUE)
 
 # lancement
-afi_Tables2Xls(repAFI, lang = "FRA")
+gf_Tables2Xls(repGF, lang = "FRA")
 ##### /\ #####
 
 ###### Job 9 : édition des résultats au format SIG #####
 # chargement du script
-source(file.path(depo, "afi_ShapesPlac.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path(depo, "gf_ShapesPlac.R"), encoding = 'UTF-8', echo = TRUE)
 
 # lancement
-afi_ShapesPlac(repAFI)
+gf_ShapesPlac(repGF)
 ##### /\ #####
 
 ##### Job 10 : édition du classeur de remesure #####
 # chargement du script
-source(file.path("scripts/afi_ClasseurRem.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path("scripts/gf_ClasseurRem.R"), encoding = 'UTF-8', echo = TRUE)
 
 # lancement
-# translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermAFI2", "translations/translation_test.json"))
-translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermAFI2", "translations/translation.json"))
+# translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermGF2", "translations/translation_test.json"))
+translator <- shiny.i18n::Translator$new(translation_json_path = file.path("/Users/Valentin/Travail/Outils/GitHub/PermGF2", "translations/translation.json"))
 # translator$set_translation_language("English")
 # -- i18n reactive function
 i18n <- function() {
   translator
 }
 # TODO: supprimer paramètre lang et utiliser le paramètre de translator
-afi_ClasseurRem(wd = repAFI, files_list = files_list, lang = "FRA")
+gf_ClasseurRem(wd = repGF, files_list = files_list, lang = "FRA")
 ##### /\ #####
 
 ##### Job 11 : édition des fiches de remesure #####
 # chargement du script
-source(file.path("scripts/afi_EditFichesRem.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path("scripts/gf_EditFichesRem.R"), encoding = 'UTF-8', echo = TRUE)
 # -> à utiliser comme modèle pour MAJ de vérif, edition des plans par placettes, édition des livrets d'analyse
 
 # lancement
-afi_EditFichesRem(wd = repAFI, files_list = files_list, lang = "FRA")
+gf_EditFichesRem(wd = repGF, files_list = files_list, lang = "FRA")
 ##### /\ #####
 
 ##### Job 12 : édition des plans des arbres par placettes #####
 # chargement du script
-source(file.path("scripts/afi_EditPlanArbres.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path("scripts/gf_EditPlanArbres.R"), encoding = 'UTF-8', echo = TRUE)
 # -> à utiliser comme modèle pour MAJ de vérif, edition des plans par placettes, édition des livrets d'analyse
 
 # lancement
-afi_EditPlansArbres(wd = repAFI, files_list = files_list, lang = "FRA")
+gf_EditPlansArbres(wd = repGF, files_list = files_list, lang = "FRA")
 ##### /\ #####
 
 
 ##### Job écriture du dictionnaire #####
 # chargement du script
-source(file.path(depo, "afi_Dictionary2RData.R"), encoding = 'UTF-8', echo = TRUE)
+source(file.path(depo, "gf_Dictionary2RData.R"), encoding = 'UTF-8', echo = TRUE)
 
 # lancement
 # entrée = fichier de dictionaire le plus à jour (feuille PUvar entre autres)
-# file <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/data/excel/dictionary/Translation_Work_ENG_20190426.xlsx"
-file <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/data/excel/dictionary/afi_dictionary.xlsx"
-afi_Dictionary2Rdata(repAFI, file, trad = T)
+# file <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2/data/excel/dictionary/Translation_Work_ENG_20190426.xlsx"
+file <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2/data/excel/dictionary/gf_dictionary.xlsx"
+gf_Dictionary2Rdata(repGF, file, trad = T)
 
 
 

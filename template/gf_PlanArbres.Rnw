@@ -1,0 +1,300 @@
+\documentclass[a4paper]{book}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+\usepackage[french,english]{babel}
+\usepackage[T1]{fontenc}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{xcolor}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{fancyvrb}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{pgfsys}
+\usepackage{keyval}
+\usepackage{subfig}
+\usepackage{eurosym}
+\usepackage{helvet}
+\renewcommand{\familydefault}{\sfdefault}
+
+\voffset -2cm
+\hoffset 0cm
+\oddsidemargin 0cm
+\evensidemargin -0.5cm
+\textwidth 17cm
+\topmargin 1cm
+\textheight 24cm
+\parindent 0cm
+\columnsep 0.7cm
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+<<OptionsGenerales, include=FALSE>>=
+knitr::opts_chunk$set(concordance=T,include=T,tidy=F, warning=F, comment=F, error=F, cache = F)
+knitr::opts_chunk$set(size='normalsize')
+knitr::opts_chunk$set(fig.path=repFigures, dev='pdf')
+# opts_chunk$set(fig.path="Figures/", dev='png')
+knitr::opts_chunk$set(fig.align='center',fig.show='hold')
+options(width=45)
+knitr::opts_knit$set(eval.after = 'fig.cap') # evaluate fig.cap after the chunk
+par(mar=c(0,0,0,0))
+@
+
+<<Librairies, echo=FALSE, warning=F, error=F, comment=F, message=F >>=
+suppressMessages({
+  library(ggplot2)
+  library(grid)
+  library(gridExtra)
+  library(stringr)
+  library(openxlsx)
+  library(dplyr)
+})
+@
+
+<<Initialisation, echo=FALSE, warning=F, error=F, comment=F, message=F >>=
+# -------Import des donnees ------
+###
+# repGF <- "/Users/Valentin/Travail/Projets/PlateformeTraitement_ONF/programs/placettes/uploads/excel/2"
+# repGF <- "/Users/Valentin/Travail/Projets/PlateformeTraitement_ONF/programs/placettes/uploads/excel/21"
+# repGF <- "/Users/Valentin/Travail/Projets/PlateformeTraitement_ONF/programs/placettes/uploads/excel/53"
+# setwd(repGF)
+# load("out/job1/gfDonneesBrutes.Rdata")
+# # Préparation des tables
+# Arbres <-
+#   dplyr::left_join(IdArbres, ValArbres, by = "IdArbre") %>%
+#   mutate(Azimut = as.numeric(Azimut))
+# forest_num <- Forets$NumForet
+# NomForet <- Forets$Nom[match(forest_num,Forets$NumForet)]
+###
+
+# -------Extraction ------
+# nom1 <- Nom
+t1 <-
+  Arbres %>%
+  filter(NumForet == forest_num & Cycle == last_cycle) %>%
+  # mutate(NumPlac = as.numeric(NumPlac)) %>%
+  arrange(NumPlac, Azimut) %>%
+  mutate(
+    Type = ifelse(is.na(Type), "AV", Type),
+    Type = ifelse(Type=="SA" | Type=="SN", "S", Type),
+    Diam1 = ifelse(is.na(Diam1), Diam2, Diam1),
+    Diam2 = ifelse(is.na(Diam2), Diam1, Diam2),
+    Diam1 = ifelse(Diam1 == 0, Diam2, Diam1),
+    Diam2 = ifelse(Diam2 == 0, Diam1, Diam2),
+
+    Diam = (Diam1 + Diam2) / 2,
+    Classe = floor(Diam / 5 + 0.5) * 5
+  )
+
+# ------------- Formats
+MyTheme <-
+  theme_bw() +
+  theme(
+    axis.text.x = element_text(size = 8),
+    axis.title.x = element_text(size = 9),
+    axis.title.y = element_text(size = 9),
+    axis.text.y = element_text(size = 8),
+    plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm")
+  )
+
+# ----- Palettes
+# --- Palette Essences
+CodeCouleurs <-
+  data.frame(
+    Essence = unique(t1$Essence),
+    Couleur = Essences$Couleur[ match(unique(t1$Essence), Essences$Nom) ],
+    stringsAsFactors = F
+  )
+
+Palette_Essence <- CodeCouleurs$Couleur
+names(Palette_Essence) <- CodeCouleurs$Essence
+
+# --- Palette Types
+Palette_Type <- c(21:24)
+names(Palette_Type) <- c("AV", "A", "C", "S")
+
+
+
+
+# ----- Palette size - Essai 1
+# Max_Diam1 <- max(t1$Classe,na.rm=T)
+# Ecart_Size <- floor(Max_Diam1/5/5+0.5)*5
+# Label_Size1 <- seq(10+Ecart_Size,
+#                   Max_Diam1,
+#                   Ecart_Size)
+# Label_Size <- c(Label_Size1,
+#                 Label_Size1[length(Label_Size1)]+Ecart_Size)
+#
+# t1 <- mutate(t1,
+#              Size=cut(Diam1,
+#                       breaks=c(0,Label_Size1+Ecart_Size/2,200),
+#                       labels=Label_Size),
+#              Size=as.character(Size))
+# Palette_Size <- c(3:7)
+# names(Palette_Size) <- sort(unique(t1$Size))
+
+# ----- Palette size - Essai 2
+# -- Localisation
+Max_Classe <- max(t1$Classe,na.rm=T)
+Breaks_Size <- seq(20,Max_Classe-10,10)+5
+# Label_Size <- seq(20,Max_Classe,10)
+Label_Size1 <- c("< ",paste0(Breaks_Size[-length(Breaks_Size)],"-"))
+Label_Size2 <- Breaks_Size
+Label_Size <- c(paste0(Label_Size1,Label_Size2),
+                paste0("> ",Breaks_Size[length(Breaks_Size)]))
+
+t1 <-
+  t1 %>%
+  mutate(
+    Size_Loc =
+      cut(
+        Diam1,
+        breaks = c(0, seq(20, Max_Classe - 10, 10) + 5, 200),
+        labels = Label_Size
+      ),
+    Size_Loc = factor(Size_Loc, levels = Label_Size),
+    # Essence=factor(Essence),
+    Type = factor(Type, levels = names(Palette_Type))
+  )
+
+
+Palette_Size <- 5:(Max_Classe/10+3)
+names(Palette_Size) <- Label_Size
+
+Palette_L <- length(Palette_Size)
+
+@
+
+\begin{document}
+
+<<PlanArbres, echo=FALSE, fig.height=9, fig.show='asis', fig.pos='h', warning=FALSE, message=FALSE>>=
+# N.B : pour avoir accès aux polices de Windows, il faut les importer grâce à la fonction import_font() du pckg extrafont
+
+# ListPlac <- as.numeric(unique(t1$NumPlac))
+ListPlac <- sort( as.numeric(unique(t1$NumPlac)) )
+
+ListWarn <- c()
+
+for (plac in ListPlac) {
+  #   plac=2
+  # print(plac)
+  p <- t1[t1$NumPlac==plac,]
+
+  pRepere <- p[p$Diam1 >= 17.5,]
+
+  MaxDist <- ifelse(max(p$Dist, na.rm=T) < 20,
+                    20,max(p$Dist, na.rm=T))
+  #   shapes <- c("vivant" = 21,"mort" = 22,"volis" = 24, "souche" = 25)
+
+  if (length(unique(p$Diam1))==1) {
+    if (is.na(unique(p$Diam1))) {
+      ListWarn <- c(ListWarn,plac)
+    }
+  } else {
+
+    SizeMin <- 5
+    SizeMax <- 15
+
+    pl <- ggplot(data=p,
+                 aes(y=Dist,
+                     x=as.numeric(Azimut),
+                     shape=Type,
+                     # color=Essence,
+                     fill=Essence,
+                     size=Size_Loc,
+                     label=NumArbre)) +
+
+      geom_hline(yintercept=seq(5,MaxDist,5), colour="grey", linetype=2, alpha=1) +
+      geom_vline(xintercept=c(0,100,200,300,400), colour="grey", size=0.5) +
+
+      annotate("text",
+               x=rep(seq(100,400,100),
+                     (MaxDist-5)/5+1),
+               y=sort(rep(seq(5,MaxDist,5),(400-100)/100+1)),
+               label=paste0(sort(rep(seq(5,MaxDist,5),(400-100)/100+1))," m"),
+               size=3.5, colour="gray50", fontface="bold",
+               vjust=-0.2, angle = rep(c(-90,180,90,0),(MaxDist-5)/5+1),alpha=1) +
+
+      geom_point(alpha=0.6) +
+      geom_text(pRepere, mapping=aes(y=Dist, x=as.numeric(Azimut)),
+                color="navyblue", size=3, vjust=2, fontface="bold") +
+      scale_size_manual(name="Ordres de grandeur\n de Diam1 (cm)",
+                        values=Palette_Size,drop=FALSE) +
+      ggtitle(paste0(forest_name," - Placette ",plac))
+
+    pl <- pl +
+      scale_y_continuous(limits=c(0,MaxDist), expand=c(0,0))+
+      scale_x_continuous(limits=c(0,400),
+                         expand=c(0,0),
+                         label=paste0(c(0,100,200,300,400)," gr")) +
+      scale_fill_manual(values=Palette_Essence) +
+      # scale_colour_manual(values=Palette_Essence) +
+      scale_shape_manual(name = "Population",
+                         label=c("Arbre\nvivant",
+                                 "Bois mort\nsur pied",
+                                 "Chandelle",
+                                 "Souche"),
+                         values = Palette_Type,
+                         drop=FALSE) +
+
+     theme_bw() +
+      theme(axis.text.x  = element_text(size=10, colour="blue"),
+            # text=element_text(family="Times"),
+            axis.title.x  = element_blank(),
+            axis.title.y  = element_blank(),
+            axis.text.y= element_blank(),
+            # axis.text.y  = element_text(size=8),
+            axis.line=element_blank(),
+            legend.position="bottom",
+            legend.box="vertical",
+            axis.ticks.y =element_blank(),
+
+            panel.grid=element_blank(),
+            panel.grid.minor.y=element_blank(),
+            panel.border=element_blank(),
+            plot.margin = unit(c(0.1,0.1,0.1,0.1), "cm")) +#,
+
+      coord_polar() +
+
+      # guides(fill=guide_legend(order=1),
+      #           # colour = guide_legend(override.aes = list(size=15,linetype=1), # permet de changer la taille des figurés de légende
+      #           #                    order=1),
+      #        fill=guide_legend(keywidth = 3, keyheight = 1),
+      #        # fill = guide_legend(override.aes = list(size=7,linetype=1),
+      #        #                       order=1),
+      #        size=guide_legend(order=2),
+      #        shape = guide_legend(override.aes = list(size=7),
+      #                             order=3)) +
+        guides(fill=guide_legend(order=1,
+                                 override.aes=list(shape=21,
+                                                   size=5)),
+               size=guide_legend(order=2,
+                                 override.aes=list(shape=1)),
+               shape = guide_legend(order=3,
+                                    override.aes=list(size=5))) +
+        theme(legend.key = element_rect(colour = "white"))
+
+    suppressWarnings(print(pl))
+  }
+}
+
+# if (length(ListWarn) > 0) {
+#   if (length(ListWarn) > 1) {
+#     stop(
+#       "Aucun diamètre (Diam1) renseigné pour les placettes N° ",
+#       paste0(ListPlac[which(ListPlac %in% ListWarn)], collapse = ", "),
+#       ".\n\nPas de plans créés pour ces placettes."
+#     )
+#   } else {
+#     stop(
+#       "Aucun diamètre (Diam1) renseigné pour la placette N° ",
+#       ListPlac[which(ListPlac %in% ListWarn)],
+#       ".\n\nPas de plan créé pour cette placette."
+#     )
+#   }
+# }
+
+@
+
+\end{document}

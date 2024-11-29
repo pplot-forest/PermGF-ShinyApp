@@ -1,0 +1,307 @@
+\documentclass[a4paper]{article}
+% \documentclass[a4paper,landscape]{article}
+\usepackage[utf8]{inputenc}
+\usepackage{amsmath}
+% \usepackage[T1]{fontenc}
+\usepackage[french,english]{babel}
+\usepackage{amsfonts}
+\usepackage{amssymb}
+\usepackage{colortbl, xcolor}
+\usepackage{hyperref}
+\usepackage{tikz}
+\usepackage{fancyvrb}
+\usepackage{rotating}
+\usepackage{multido}
+\usepackage{booktabs}
+\usepackage{placeins}
+\usepackage{graphicx}
+\usepackage{helvet}
+\usepackage[left=1cm,right=1cm,top=0.5cm,bottom=0.5cm]{geometry}
+
+% \voffset -3.5cm
+% \hoffset -2cm
+% \oddsidemargin 0cm
+% \evensidemargin 0cm
+% \textwidth 29cm
+% \topmargin 0cm
+% \textheight 19.2cm
+% \parindent 0cm
+% \columnsep 0cm
+
+\begin{document}
+\DefineVerbatimEnvironment{Sinput}{Verbatim}{formatcom = {\color[rgb]{0, 0, 0.56}}}
+\begin{center}
+
+\newcolumntype{P}[1]{>{\centering\arraybackslash}p{#1}}
+\newcolumntype{M}[1]{>{\centering\arraybackslash}m{#1}}
+\newcolumntype{C}[1]{>{\centering}p{#1}}
+\newcolumntype{L}[1]{>{\raggedright\arraybackslash }b{#1}}
+
+\pagestyle{plain} % numéros de page
+
+<<OptionsGenerales, include=FALSE>>=
+opts_knit$set(root.dir = '..') # evaluate fig.cap after the chunk
+@
+
+<<Preparation, echo=F, warning=FALSE, message=F>>=
+ suppressMessages(library(xtable))
+ suppressMessages(library(stringr))
+ suppressMessages(library(dplyr))
+ suppressMessages(library(openxlsx))
+# ---------- Paramètres
+# NbLignes <- 28
+NbLignes = 43
+
+# -------Extraction ------
+t1 <- 
+  Arbres %>% 
+  filter(NumForet == forest_num & Cycle==last_cycle) %>%
+  select(NumPlac,NumArbre,Cycle,Essence,Azimut,Dist,
+         Diam1,Diam2,Haut,
+         # HautL,Ray1,Dh1,Ray2,Dh2,
+         Qual,CodeEcolo,Observations,
+         Type,Stade,Coupe) %>%
+  mutate(NumArbre=as.numeric(NumArbre),
+         Azimut=round(as.numeric(Azimut),1),
+         Haut=ifelse(Haut==0,NA,Haut),
+         # HautL=ifelse(HautL==0,NA,HautL),
+         # Ray1=ifelse(Ray1==0,NA,Ray1),
+         # Dh1=ifelse(Dh1==0,NA,Dh1),
+         # Ray2=ifelse(Ray2==0,NA,Ray2),
+         # Dh2=ifelse(Dh2==0,NA,Dh2),
+
+         # Observations=str_replace(Observations,"œ","k")) %>%
+         Observations=gsub("œ","oe",Observations),
+         Observations=gsub("&","et",Observations),
+         Observations=gsub("%","pour cent",Observations),
+
+         Mark_Perches=NA,
+             Mark_Perches=ifelse(Diam1 < 17.5,
+                                 1,0)) %>%
+         # Observations=gsub("?","\\?",Observations)) %>% # Observations=gsub(",",".",Observations)
+  arrange(NumPlac,NumArbre,Azimut,Dist)
+t1Bis <- dplyr::mutate(t1,
+                Cycle=Cycle+1)
+t1Bis[,!names(t1Bis) %in% c("NumPlac","NumArbre","Cycle","Essence","Azimut","Dist","Mark_Perches")] <- NA
+t1 <- rbind(t1,t1Bis) %>%
+  # mutate(NumPlac=as.numeric(NumPlac)) %>%
+  arrange(NumPlac,Mark_Perches,Azimut,Dist,Cycle) %>%
+  mutate(Cycle=NULL, Mark_Perches=NULL)
+
+ListPlac <- sort( as.numeric(unique(t1$NumPlac)) )
+# ListPlac <- ListPlac[1:10]
+
+##### 1/ Fonction mise en forme texte (string vector) pour édition LaTeX #####
+utf82LaTeX <- function(string, ...) {
+  string <- paste0(string, ...)
+  string <- gsub("-", "--", string, fixed = T)
+  string <- gsub("—", "---", string, fixed = T)
+  string <- gsub("#", "\\#", string, fixed = T)
+  # string <- gsub("{", "\\{", string, fixed  = T)
+  # string <- gsub("}", "\\}", string, fixed  = T)
+  # string <- gsub("$", "\\$", string, fixed = T)
+  string <- gsub("_", "\\_", string, fixed = T)
+  string <- gsub("&", "\\&", string, fixed = T)
+  string <- gsub("œ", "\\oe ", string, fixed = T)
+  string <- gsub("æ", "\\ae ", string, fixed = T)
+  string <- gsub("«", "\\og ", string, fixed = T)
+  string <- gsub("»", "\\fg{}", string, fixed = T)
+  string <- gsub("“", "``", string, fixed = T)
+  string <- gsub("”", "''", string, fixed = T)
+  string <- gsub("n°", "\\no ", string, fixed = T)
+  string <- gsub("N°", "\\No ", string, fixed = T)
+  string <- gsub("%", "\\%", string, fixed = T)
+  string <- gsub("°", "\\textdegree", string, fixed = T)
+  string <- gsub("‰", "\\textperthousand", string, fixed = T)
+  string <- gsub("€", "\\texteuro", string, fixed = T)
+  string <- gsub("^", "\\textasciicircum", string, fixed = T)
+  string <- gsub("~", "\\textasciitilde", string, fixed = T)
+  # cat(string)
+  return(string)
+}
+@
+
+\renewcommand{\arraystretch}{1.3}  % changement : Hauteur des lignes passe de 1.4 à 1.3
+\setlength{\tabcolsep}{1pt} % Espace entre trait et texte d'une colonne
+
+<<Impression, echo=F, results='asis', fig.pos="H", comment=F, error=F, size='scriptsize', cache=F, out.width="\\textwidth">>=
+# pb <- tkProgressBar("Progression",
+#                     paste0("Edition Fiches de remesures pour la forêt ",
+#                            Nom,
+#                            " (%)"),
+#                     0, 100, width=500)
+
+
+df <- dplyr::mutate(t1,
+             NumPlac=NULL)
+df[,] <- NA
+
+for (plac in ListPlac) {  # 131 74
+  # -------------- Extraction placette
+  tab <-
+    t1 %>%
+    dplyr::filter(NumPlac == plac) %>%
+    dplyr::mutate(
+      CodeEcolo = tolower(CodeEcolo),
+      Observations = tolower(Observations),
+      
+      NumPlac = NULL,
+      CodeEcolo = ifelse(
+        nchar(CodeEcolo) > 14,
+        paste0(str_sub(CodeEcolo, 1, 14), " ", str_sub(CodeEcolo, 15, -1)),
+        CodeEcolo
+      ),
+      CodeEcolo = str_trim(CodeEcolo, "both"),
+      
+      Observations = ifelse(
+        !is.na(Observations), utf82LaTeX(Observations), Observations
+      ),
+      Observations = str_trim(Observations, "both")) %>%
+    rbind(df[1:15, ]) # rajout d'une vingtaine de lignes supplémentaire
+
+
+  nb <- dim(tab)[1]
+  # tab <- rbind(tab,df) # ---- Insertion de lignes vides
+  # nbtot <- dim(tab)[1]
+  OverChar <- unique(which(nchar(tab$CodeEcolo) > 14 |
+                             nchar(tab$Observation) > 16))
+  nb <- nb + length(OverChar)
+  NbSheet <- ceiling(nb/NbLignes)
+  # -------------- Remplissage entête
+  Count = 0
+
+  # for (j in 1:ceiling(nb/NbLignes)) {
+  for (j in 1:NbSheet) {
+    NomPlac <- paste0("Placette : ",plac," (",j,"/",NbSheet,")")
+    temp <- tab[(Count+1):(Count+NbLignes),]
+
+    # ----- Gestion des lignes si trop de texte ----- #
+    temp <- mutate(
+      temp,
+      OverChar = ifelse(nchar(CodeEcolo) > 28 | # 14 hors chavannes
+                          nchar(Observations) > 16, # Repère les chaines de caractère trop longues
+                        2,1),
+      OverChar=ifelse(is.na(OverChar),1,OverChar),
+      
+      # OverChar=ifelse(OverChar == 1,
+      #                 OverChar,
+      #                 ifelse(nchar(CodeEcolo)/14 > nchar(Observations)/16,
+      #                        # (ceiling(nchar(CodeEcolo)/14)-1)*0.75+1,
+      #                        # (ceiling(nchar(Observations)/16)-1)*0.75+1)),
+      #                        ceiling(nchar(CodeEcolo)/14)-0.34,
+      #                        ceiling(nchar(Observations)/16)-0.34)),
+      NbCharC=ifelse(OverChar==1,
+                     1,
+                     ifelse(is.na(CodeEcolo),
+                            1,
+                            nchar(CodeEcolo))),
+      NbCharO=ifelse(OverChar==1,
+                     1,
+                     ifelse(is.na(Observations),
+                            1,
+                            nchar(Observations))),
+      OverChar=ifelse(NbCharC==1 & NbCharO==1,
+                      1,
+                      ifelse(NbCharC/28 > NbCharO/16, # 14 hors chavannes
+                             # (ceiling(nchar(CodeEcolo)/14)-1)*0.75+1,
+                             # (ceiling(nchar(Observations)/16)-1)*0.75+1)),
+                             ceiling(NbCharC/28)-0.34, # 14 hors chavannes
+                             ceiling(NbCharO/16)-0.34)),
+      # OverChar=ifelse(OverChar == 1,
+      #                 OverChar,
+      #                 (ceiling(nchar(OverChar) / 14)-1) * 0.85 + 1), # * 3/4   * 9/10 # -1 pour supprimer la 1ère ligne (de base)
+      # OverChar=ifelse(is.na(OverChar),1,OverChar),
+      Count=cumsum(OverChar)) %>%
+      filter(Count <= NbLignes) %>%
+      mutate(
+        OverChar = NULL, 
+        Count = NULL
+      )
+    
+    NbLignes2 <- dim(temp)[1]
+
+    temp2 <- 
+      tab[(Count+1):(Count+NbLignes2),] %>%  
+      mutate(CodeEcolo = NULL) # spec Chavannes
+    rws <- seq(0, NbLignes2-1, by = 2)
+    col <- rep("\\rowcolor[gray]{0.95}", length(rws))
+    Count <- Count + dim(temp2)[1]
+
+    # ------------------------------------------- Préparation de l'entête
+    titre <- data.frame(
+      info1 = c(forest_name, NomPlac),
+      milieu = c("GF : Fiche de Remesure", NA),
+      text2 = c("Date :", "Opérateurs :"),
+      stringsAsFactors = F
+    )
+
+    # -------------- Impression entête
+    Format1 <-c("M{0cm}","L{4cm}","M{10cm}","L{4cm}")
+    print(
+      xtable(titre, align= Format1),
+      include.colnames = F,
+      # scalebox= ech,
+      include.rownames = F,
+      floating = F,
+      # latex.environments = "center",
+      table.placement="ht",
+      hline.after = NULL
+    )
+
+
+    # -------------- Impression Données
+    Format2 <- c(
+      "|M{0cm}","|M{1cm}",
+      # "|M{1cm}", pour Cycle
+      "|M{1.5cm}","|M{1.3cm}","|M{1.4cm}",
+      
+      rep("|M{1.1cm}",4),
+      "|M{4cm}|", # "|M{2.4cm}","|M{2.7cm}|" hors chavannes
+      rep("M{1.1cm}|",dim(tab)[2]-10) # 10 hors chavannes
+    )
+    # Format2 <- c(rep("|c",dim(temp)[2]),"|c|")
+    #     tp <- xtable(temp, digits=c(rep(0,4),1,rep(0,3),2,rep(0,7)))
+    #     align(tp) <- "|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l|l"
+    #     print(tp,add.to.row = list(pos = as.list(rws), command = col),
+    #           scalebox= ech, include.rownames=F, floating=F, hline.after=c(-1:NbLignes),
+    #           tabular.environment="tabularx",width="\\textwidth")
+    cat("\\vspace{0.3cm}
+
+    \\FloatBarrier")
+
+    temp2 <- rename(temp2, Num = NumArbre)
+    
+    print(
+      xtable(
+        temp2,
+        align = Format2,
+        digits = c(
+          rep(0, 4), 1, rep(0, 2), rep(1, 1), 
+          rep(0, dim(temp2)[2] - (8 - 1))
+        )
+      ),
+      add.to.row = list(pos = as.list(rws), command = col),
+      # scalebox= ech,
+      include.rownames = F,
+      floating = F,
+      # latex.environments = "center",
+      hline.after = c(-1:NbLignes2),
+      sanitize.text.function = function(x) {return(x)}
+    )
+    # cat("\\vspace{0.5cm}
+    #
+    # \\FloatBarrier")
+    cat("\\newpage")
+  }
+  # info <- round(match(plac,ListPlac)/length(ListPlac)*100)
+  # setTkProgressBar(pb, info, paste0("Edition (",info," %)"),
+  #                  paste0("Edition des fiches de remesure - forêt ",
+  #                         Nom,
+  #                         " : ",
+  #                         info,"% done"))
+}
+# close(pb)
+@
+\newpage
+\end{center}
+\end{document}

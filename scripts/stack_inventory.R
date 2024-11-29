@@ -1,6 +1,6 @@
 # rm(list = ls())
-# repAFI <- getwd()
-repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI-ShinyApp"
+# repGF <- getwd()
+repGF <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI-ShinyApp"
 
 # Installation/Activation des packages nécessaires
 library(easypackages)
@@ -15,7 +15,7 @@ packages(
 # )
 # library(PermAFI)
 
-translator <- shiny.i18n::Translator$new(translation_json_path = file.path(repAFI, "www/translations/translation.json"))
+translator <- shiny.i18n::Translator$new(translation_json_path = file.path(repGF, "www/translations/translation.json"))
 translator$set_translation_language("Français")
 # -- i18n reactive function
 i18n <- function() {
@@ -24,15 +24,15 @@ i18n <- function() {
 
 # chargement du script annexes
 source(
-  file.path(repAFI, "scripts/annexes.R"), 
+  file.path(repGF, "scripts/annexes.R"), 
   encoding = 'UTF-8', echo = FALSE
 )
 source(
-  file.path(repAFI, "scripts/afi_ClasseurRem.R"), 
+  file.path(repGF, "scripts/gf_ClasseurRem.R"), 
   encoding = 'UTF-8', echo = FALSE
 )
 source(
-  file.path(repAFI, "scripts/afi_XlsTranslation.R"), 
+  file.path(repGF, "scripts/gf_XlsTranslation.R"), 
   encoding = 'UTF-8', echo = FALSE
 )
 
@@ -815,11 +815,11 @@ check_table_columns <- function(
 ##### function to stack new and former inventory #####
 # TODO : officialiser la fonction et la redécouper ?
 stack_inventory <- function(
-  repAFI = NULL, file_path = NULL
+  repGF = NULL, file_path = NULL
 ) {
   # -- initialize
   # wd
-  setwd(repAFI)
+  setwd(repGF)
   
   # loading data# -- import past inventory ?
   ans <- tk_messageBox(
@@ -828,7 +828,7 @@ stack_inventory <- function(
   )
   if (ans == "yes") {
     # wd - calé par défaut sur le dossier PermAFI2
-    repAFI <- getwd()
+    repGF <- getwd()
     # file path
     file_path <- 
       tk_choose.files(
@@ -841,11 +841,11 @@ stack_inventory <- function(
       )
     if (!length(file_path)) {stop("Import des anciens relevés interrompu - aucun fichier sélectionné")}
     # call
-    afi_XlsTranslation(repAFI, file_path)
+    gf_XlsTranslation(repGF, file_path)
   }
-  arch1 = "tables/afiDonneesBrutes.Rdata"
-  arch2 = "tables/afiCodes.Rdata"
-  arch3 = "tables/afiDictionary.Rdata"
+  arch1 = "tables/gfDonneesBrutes.Rdata"
+  arch2 = "tables/gfCodes.Rdata"
+  arch3 = "tables/gfDictionary.Rdata"
   arch_styles = "tables/wb_styles.Rdata"
   load(arch1)
   load(arch2)
@@ -962,7 +962,7 @@ stack_inventory <- function(
       inventory[[sheet]] %>% 
       select( all_of(columns_names) ) %>% 
       # tidy tmp
-      tidy_afi_table(table_name = sheet, column_types = column_types)
+      tidy_gf_table(table_name = sheet, column_types = column_types)
     
     # get disp numbers through all inventory tables
     if ("NumDisp" %in% names(inventory[[sheet]])) {
@@ -1474,4 +1474,4 @@ stack_inventory <- function(
 }
 
 # # call
-# stack_inventory(repAFI)
+# stack_inventory(repGF)

@@ -320,9 +320,9 @@ check_needed_sheets <- function(
 }
 
 
-##### function to tidy afi tables #####
+##### function to tidy gf tables #####
 # PARAM
-# define column types ATTENTION : MODIFIER l'objet column_types dans la fonction afi_XlsTranslation
+# define column types ATTENTION : MODIFIER l'objet column_types dans la fonction gf_XlsTranslation
 column_types <- list(
   numeric = c(
     "NumDisp", "NumPlac", "NumArbre", "IdArbre", "Azimut", "Distance",
@@ -340,7 +340,7 @@ column_types <- list(
   no_empty_values = c("Recouv", "Class1", "Class2", "Class3", "Rejet", "Abroutis", "Angle")
 )
 
-tidy_afi_table <- function(table = NULL, table_name = NULL, column_types = NULL) {
+tidy_gf_table <- function(table = NULL, table_name = NULL, column_types = NULL) {
   # table = tmp # debug
   table_name <- ifelse(is.null(table_name), "", paste0("table ",table_name, "\n"))
   
@@ -394,7 +394,7 @@ tidy_afi_table <- function(table = NULL, table_name = NULL, column_types = NULL)
     table[no_empty_values_columns],  FUN = function(x) replace(x, is.na(x), 0)
   )
   
-  # -- return from 'tidy_afi_table' function
+  # -- return from 'tidy_gf_table' function
   return(table)
 }
 
@@ -430,7 +430,7 @@ set_db_id <- function(
 
 
 ##### fonction pour importer les données d'inventaire AFI #####
-afi_XlsTranslation <- function(
+gf_XlsTranslation <- function(
   wd = NULL, 
   files_list = NULL, 
   output_dir = file.path(wd, "tables"),
@@ -441,8 +441,8 @@ afi_XlsTranslation <- function(
   
   ##### 1/ Initialisation #####
   # -- chargement du dictionnaire de traduction
-  # TODO : créer une fonction pour s'assurer que la table afiDictionary existe bien
-  load(file.path(output_dir, "afiDictionary.Rdata"))
+  # TODO : créer une fonction pour s'assurer que la table gf_dictionary.Rdata existe bien
+  load(file.path(output_dir, "gf_dictionary.Rdata"))
   
   # TODO : à sauvegarder dans une archive de paramètres ?
   # define column types
@@ -491,7 +491,7 @@ afi_XlsTranslation <- function(
         
       # --
       # # -- tests si archives déjà en mémoire # TODO : à remplacer par une fonction
-      # if ("afiDonneesBrutes.Rdata" %in% list.files(path = "tables")) {
+      # if ("gfDonneesBrutes.Rdata" %in% list.files(path = "tables")) {
       #   showModal(modalDialog(
       #     span("Une archive contenant des donn\u00E9es d'inventaire existe d\u00E9j\u00E0. Si les dispositifs s\u00E9lectionn\u00E9s figurent d\u00E9j\u00E0 en archive, ces anciennes donn\u00E9es seront \u00E9cras\u00E9es"),
       #     footer = tagList(
@@ -615,7 +615,7 @@ afi_XlsTranslation <- function(
           }
           
           # tidy tmp
-          tmp <- tidy_afi_table(
+          tmp <- tidy_gf_table(
             table = tmp, table_name = table_name, column_types = column_types
             )
           
@@ -640,7 +640,7 @@ afi_XlsTranslation <- function(
       names(db) <- str_replace_all(string = names(db), pattern = replacement)
       
       # -- superposition des tables (si archive déjà existante)
-      if ( "afiDonneesBrutes.Rdata" %in% list.files(path = "tables") ) { # cond '"afiDonneesBrutes.Rdata" %in% list.files(path = "tables"'
+      if ( "gfDonneesBrutes.Rdata" %in% list.files(path = "tables") ) { # cond '"gfDonneesBrutes.Rdata" %in% list.files(path = "tables"'
         # - 1. On filtre les tables déjà présentes dans l'archive (num du disp importé est exclus)
         # -- Numéros des dispositifs importés
         imported_data_stand_num <- all_disp_num
@@ -648,8 +648,8 @@ afi_XlsTranslation <- function(
         # -- noms des tables en archive
         table_names <-
           c("Arbres", "Taillis", "Reges", "BMortSup30", "BMortLineaires", "Coords")
-        # table_names <- load(file.path(output_dir, "afiDonneesBrutes.Rdata"))
-        load(file.path(output_dir, "afiDonneesBrutes.Rdata"))
+        # table_names <- load(file.path(output_dir, "gfDonneesBrutes.Rdata"))
+        load(file.path(output_dir, "gfDonneesBrutes.Rdata"))
         Arbres <- 
           left_join(IdArbres, ValArbres, by = "IdArbre") %>% 
           mutate(IdArbre = NULL)
@@ -669,7 +669,7 @@ afi_XlsTranslation <- function(
             arch <- arch %>% select(-tmp, -add_deadwood_dmh)
           }
           # security - à éliminer après travail shiny ?
-          arch <- tidy_afi_table(table = arch, column_types = column_types)
+          arch <- tidy_gf_table(table = arch, column_types = column_types)
           
           # - 2. On ajoute les tables nouvellement importées
           # -- stack newly imported data
@@ -684,7 +684,7 @@ afi_XlsTranslation <- function(
         for (table in names(db)) { # loop 'table in names(db)'
           assign(table, db[[table]])
         } # end of loop 'table in names(db)'
-      } # end of cond '"afiDonneesBrutes.Rdata" %in% list.files(path = "tables"'
+      } # end of cond '"gfDonneesBrutes.Rdata" %in% list.files(path = "tables"'
       
       # build id for tree tables
       # if (sheet == "Arbres") {
@@ -745,7 +745,7 @@ afi_XlsTranslation <- function(
       dir.create("tables", showWarnings = F)
       save(
         IdArbres, ValArbres, Taillis, Reges, BMortSup30, BMortLineaires, Coords,  #Placettes,
-        file = file.path(output_dir, "afiDonneesBrutes.Rdata")
+        file = file.path(output_dir, "gfDonneesBrutes.Rdata")
       )
       
       print(
@@ -767,17 +767,17 @@ afi_XlsTranslation <- function(
   ##### 5/ Traduction + édition des classeurs #####
   if (trad == T) {
     ##### TRAD-1/ Initialisation
-    # -- sécurité : présence de la table afiCodes.Rdata indispensable
-    if (!is.element("afiCodes.Rdata", list.files(path = "tables"))) {
+    # -- sécurité : présence de la table gfCodes.Rdata indispensable
+    if (!is.element("gfCodes.Rdata", list.files(path = "tables"))) {
       Ans1 <-
         tk_messageBox(
           type = "ok",
-          message = "Aucune archive contenant les donnn\u00E9es administrateurs d\u00E9tect\u00E9e ('afiCodes.Rdata'). Traduction impossible",
+          message = "Aucune archive contenant les donnn\u00E9es administrateurs d\u00E9tect\u00E9e ('gfCodes.Rdata'). Traduction impossible",
           icon = "warning"
         )
       stop("Traduction impossible sans les donn\u00E9es administrateurs")
       
-    } else load("tables/afiCodes.Rdata")
+    } else load("tables/gfCodes.Rdata")
     
     
     ##### TRAD-2/ Choix de la langue dans laquelle traduire les classeurs
@@ -867,7 +867,7 @@ afi_XlsTranslation <- function(
     
     
     ##### TRAD-4/ Edition des classeurs Excel
-    afi_rewrite_disp(wd, disp_LIST, langEdit, langDir)
+    gf_rewrite_disp(wd, disp_LIST, langEdit, langDir)
   }
   ##### / \ #####
 }
@@ -1203,8 +1203,8 @@ layout_wb <- function(
 
 
 
-# TODO : décomposer avec une fonction afi_rewrite_xlsx ? (pour le cas où on réécrit les classeurs administrateurs)
-afi_rewrite_disp <- function(
+# TODO : décomposer avec une fonction gf_rewrite_xlsx ? (pour le cas où on réécrit les classeurs administrateurs)
+gf_rewrite_disp <- function(
   wd = NULL, disp_2_edit = NULL, 
   output_lang = NULL, dir_LANG = NULL,
   styles_arch = NULL,
@@ -1214,20 +1214,20 @@ afi_rewrite_disp <- function(
   
   ##### 1/ Initialisation
   # -- chargement des données d'inventaire importées
-  load(file.path(output_dir, "afiDonneesBrutes.Rdata"))
+  load(file.path(output_dir, "gfDonneesBrutes.Rdata"))
   
   # -- chargement des données administratives importées
-  load(file.path(output_dir, "afiCodes.Rdata"))
+  load(file.path(output_dir, "gfCodes.Rdata"))
   
   # -- choix du dispositif
   # disp_2_edit <- "1-Bois des Brosses" # debug
-  df_list <- load("tables/afiDonneesBrutes.Rdata")
+  df_list <- load("tables/gfDonneesBrutes.Rdata")
   check_all_msg <- "Editer les r\u00E9sultats pour tous les dispositifs"
   disp_list <- choose_disp(df_list, Dispositifs, check_all_msg)
   
   # -- chargement du dictionnaire de traduction
-  # TODO : créer une fonction pour s'assurer que la table afiDictionary existe bien
-  load(file.path(output_dir, "afiDictionary.Rdata"))
+  # TODO : créer une fonction pour s'assurer que la table gf_dictionary.Rdata existe bien
+  load(file.path(output_dir, "gf_dictionary.Rdata"))
   
   # -- reconstitution de la table Arbres
   table_colnames <- with(dictionary, Attribut_FRA[Feuille == "Arbres"])

@@ -274,7 +274,7 @@ drain_table <- function(
 #'
 #' @author Valentin Demets, Bruciamacchie Max
 #'
-#' @param repAFI = répertoire contenant les données
+#' @param repGF = répertoire contenant les données
 #' @param lang = langue (sélectionnée) de l'interface
 #'
 #' @import tcltk
@@ -282,25 +282,25 @@ drain_table <- function(
 #' @import stringr
 #' @export
 
-afi_ClasseurRem <- function(
+gf_ClasseurRem <- function(
   wd = NULL,
   files_list = NULL,
   lang = "FRA"
 ) {
   ##### 1/ Initialisation #####
   # -- chargement du dictionnaire de traduction
-  # TODO : créer une fonction pour s'assurer que la table afiDictionary existe bien
-  load(file.path(wd, "tables/afiDictionary.Rdata"))
+  # TODO : créer une fonction pour s'assurer que la table gfDictionary existe bien
+  load(file.path(wd, "tables/gfDictionary.Rdata"))
   
   # -- chargement des données d'inventaire et administratives
   # define Rdata to load
-  inventory_data <- file.path(wd, "tables/afiDonneesBrutes.Rdata")
-  admin_data <- file.path(wd, "tables/afiCodes.Rdata")
+  inventory_data <- file.path(wd, "tables/gfDonneesBrutes.Rdata")
+  admin_data <- file.path(wd, "tables/gfCodes.Rdata")
   
   # # -- chargement des données
-  # load("tables/afiDonneesBrutes.Rdata")
-  # load("tables/afiCodes.Rdata")
-  # load("tables/afiDictionary.Rdata")
+  # load("tables/gfDonneesBrutes.Rdata")
+  # load("tables/gfCodes.Rdata")
+  # load("tables/gfDictionary.Rdata")
   
   # loading
   inventory_tables <- load(inventory_data)
@@ -317,7 +317,7 @@ afi_ClasseurRem <- function(
     # } else {
     #   "Write the remeasure workbook for every stands"
     # }
-    # df_list <- load("tables/afiDonneesBrutes.Rdata")
+    # df_list <- load("tables/gfDonneesBrutes.Rdata")
     disp_list <- choose_disp(inventory_tables, Dispositifs, check_all_msg) %>% 
       clean_names()
   } else disp_list <- basename( file_path_sans_ext(files_list) ) %>% clean_names()
@@ -372,7 +372,7 @@ afi_ClasseurRem <- function(
     arbres <- 
       IdArbres %>% 
       left_join(ValArbres, by = "IdArbre") %>% 
-      # récupération des Observations - TODO : à garder dans afi_Calculs ?
+      # récupération des Observations - TODO : à garder dans gf_Calculs ?
       drain_table(disp_num, last_cycle, stack = TRUE, col = cols) %>% 
       select(
         NumDisp, Cycle, NumPlac, NumArbre, Essence, Azimut, Distance, 

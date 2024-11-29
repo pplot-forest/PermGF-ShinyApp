@@ -521,7 +521,7 @@ gf_gui.ui <- dashboardPage(
           ##### end of 3.2.3/ #####
           
           
-          dataTableOutput("data"),
+          DTOutput("data"),
           verbatimTextOutput("text")
         ) # end of fluidRow
       ) # end of 2nd tabItem

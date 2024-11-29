@@ -1,18 +1,13 @@
-# -> test authentification dropbox
-# token <- readRDS("droptoken.rds")
-# rdrop2::drop_acc(dtoken = token)
 
-# token <- drop_auth()
-# project_repo <- dirname(getwd())
 project_repo <- dirname( rstudioapi::getSourceEditorContext()$path )
 # project_repo <- drop_dir("!dropbox_folder", dtoken = token)
-# project_repo <- dirname(drop_dir("Traitement_AFI_UI")$path_display[1]) # -> test authentification dropbox
+# project_repo <- dirname(drop_dir("Traitement_GF_UI")$path_display[1]) # -> test authentification dropbox
 
 
 # filesInfo() <- getVolumes()
 # filePaths <- filesInfo$path_display
 # data <- lapply(filePaths, drop_read_csv, stringsAsFactors = FALSE)
-# project_repo <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2"
+# project_repo <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2"
 # project_repo <- "/Library/Frameworks/R.framework/Versions/3.5/Resources/library/shinycnes"
 ## server
 
@@ -30,20 +25,19 @@ translator$set_translation_language("Français")
 # objet db - environnement pour le chargement des données
 db = new.env()
 # -- debug
-# admin_rdata <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/tables/afiCodes.Rdata" # debug
+# admin_rdata <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2/tables/gfCodes.Rdata" # debug
 # load(admin_rdata, envir = db) # debug
 # test <- db[["Dispositifs"]] # debug
 
 # liste des archives utilisées dans le traitement des données
 arch_list <- c(
-  "afiDictionary.Rdata",
-  "afiDonneesBrutes.Rdata",
-  "afiCodes.Rdata",
+  "gf_dictionary.Rdata",
+  "gfDonneesBrutes.Rdata",
   "report_tables_list.Rdata"
 )
 
 ##### **** define server **** #####
-afi_gui.server <- function(input, output, session) {
+gf_gui.server <- function(input, output, session) {
   
   # ----- Initialisation #####
   # -- reactiveValues object for storing current selected lang.
@@ -51,8 +45,8 @@ afi_gui.server <- function(input, output, session) {
   rv <- reactiveValues(
     lang = "Français",
     # lang = "English",
-    repAFI = NULL, 
-    all_disp_list = NULL,
+    wd = NULL, 
+    all_forest_list = NULL,
     all_arch_present = 0
   )
   
@@ -88,19 +82,19 @@ afi_gui.server <- function(input, output, session) {
     
     if (length(selected) > 0 & rv$all_arch_present == 1) {
       # chemins des archives -> éviter de tout mettre en rv -> cela crée des mises à jour des dependents inutiles
+      # inventory data
+      inventory_rdata <-
+        file.path(wd(), "tables/gfDonneesBrutes.Rdata")
+      # dictionary (translations) data
+      dictionary_rdata <-
+        file.path(wd(), "tables/gf_dictionary.Rdata")
+      # all agreg tables list
       tables_list_rdata <-
         file.path(wd(), "tables/report_tables_list.Rdata")
-      inventory_rdata <-
-        file.path(wd(), "tables/afiDonneesBrutes.Rdata")
-      admin_rdata <-
-        file.path(wd(), "tables/afiCodes.Rdata")
-      dictionary_rdata <-
-        file.path(wd(), "tables/afiDictionary.Rdata")
       
       # loading
       load(tables_list_rdata, envir = db)
       load(inventory_rdata, envir = db)
-      load(admin_rdata, envir = db)
       load(dictionary_rdata, envir = db)
     }
     db
@@ -296,10 +290,10 @@ afi_gui.server <- function(input, output, session) {
   # #   cat("\ninput$admin_files - fichiers admin sélectionné(s) :\n")
   # #   # print(input$admin_files)
   # # 
-  # #   repAFI <- parseDirPath(volumes, input$path_project_sel)
-  # #   print(repAFI)
+  # #   wd <- parseDirPath(volumes, input$path_project_sel)
+  # #   print(wd)
   # #   print(str(parseFilePaths(global$path, input$admin_files)))
-  # #   # afi_XlsTranslation(repAFI, files_list)
+  # #   # gf_XlsTranslation(wd, files_list)
   # # })
   # # --
   # 
@@ -445,7 +439,7 @@ afi_gui.server <- function(input, output, session) {
   ui_volumes <- function() {
     sel_path <- parseDirPath(volumes, input$directory)
     # print(sel_path)
-    # volumes <- c(home = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2")
+    # volumes <- c(home = "/Users/Valentin/Travail/Outils/GitHub/PermGF2")
     # print(volumes)
     if (length(sel_path) > 0 && !sel_path %in% volumes) {
       vnames <- c(basename(sel_path), names(volumes))
@@ -481,7 +475,7 @@ afi_gui.server <- function(input, output, session) {
       list_files <- parseFilePaths(ui_volumes, input$select_admin_files)$datapath
     
     # sécurité fichiers d'inventaire (en mettre 1 pour le répertoire admin ?)
-    # if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+    # if (is.null(rv$wd) | !length(rv$wd)) {
     if (length(list_files) == 0) {
       show_alert(
         title = i18n()$t("Aucun fichier administrateur sélectionné"),
@@ -491,18 +485,18 @@ afi_gui.server <- function(input, output, session) {
     } else {
       
       # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
-      repAFI <- parseDirPath(ui_volumes, input$directory)
-      # print(repAFI); print(list_files) # debug
+      wd <- parseDirPath(ui_volumes, input$directory)
+      # print(wd); print(list_files) # debug
       
-      # call afi_CodesTranslation (import des données administrateurs AFI)
-      afi_CodesTranslation(repAFI, files_list = list_files, i18n = i18n)
+      # call gf_CodesTranslation (import des données administrateurs GF)
+      gf_CodesTranslation(wd, files_list = list_files, i18n = i18n)
       
       # load admin data - A tester
-      load(file.path(repAFI, "tables/afiCodes.Rdata"), envir = db)
+      load(file.path(wd, "tables/gfCodes.Rdata"), envir = db)
     }
   })
   
-  # bouton 'import des données d'inventaire' - import des données (package PermAFI)
+  # bouton 'import des données d'inventaire' - import des données (package PermGF)
   observeEvent(input$import_inventory_data, {
       
       # liste des fichiers à importer
@@ -510,7 +504,7 @@ afi_gui.server <- function(input, output, session) {
     list_files <- parseFilePaths(ui_volumes, input$select_inventory_files)$datapath
     
     # sécurité fichiers d'inventaire (en mettre 1 pour le répertoire admin ?)
-    # if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+    # if (is.null(rv$wd) | !length(rv$wd)) {
     if (length(list_files) == 0) {
       show_alert(
         title = i18n()$t("Aucun fichier d'inventaire sélectionné"),
@@ -520,11 +514,11 @@ afi_gui.server <- function(input, output, session) {
     } else {
     
     # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
-    repAFI <- parseDirPath(ui_volumes, input$directory)
-    # print(repAFI); print(list_files) # debug
+    wd <- parseDirPath(ui_volumes, input$directory)
+    # print(wd); print(list_files) # debug
     
-    # call afi_XlsTranslation (import des données d'inventaire AFI)
-    afi_XlsTranslation(repAFI, list_files, i18n = i18n)
+    # call gf_XlsTranslation (import des données d'inventaire GF)
+    gf_Xls2Rdata(wd, list_files, i18n = i18n)
     
     }
   }) # end of observeEvent
@@ -532,7 +526,7 @@ afi_gui.server <- function(input, output, session) {
   
   
   
-  # # bouton 'import des données' - import des données (package PermAFI)
+  # # bouton 'import des données' - import des données (package PermGF)
   # observeEvent(input$import_inventory_data, {
   #   
   #   # liste des fichiers à importer
@@ -540,11 +534,11 @@ afi_gui.server <- function(input, output, session) {
   #   list_files <- parseFilePaths(ui_volumes, input$select_inventory_files)$datapath
   #   
   #   # répertoire de travail # TODO : argument à supprimer au profit de output_dir ?
-  #   repAFI <- parseDirPath(ui_volumes, input$directory)
-  #   # print(repAFI); print(list_files) # debug
+  #   wd <- parseDirPath(ui_volumes, input$directory)
+  #   # print(wd); print(list_files) # debug
   #   
-  #   # call afi_XlsTranslation (import des données d'inventaire AFI)
-  #   afi_XlsTranslation(repAFI, list_files)
+  #   # call gf_XlsTranslation (import des données d'inventaire GF)
+  #   gf_XlsTranslation(wd, list_files)
   # }) # end of observeEvent
   
   # -- bouton 'choix du dispositif
@@ -556,8 +550,8 @@ afi_gui.server <- function(input, output, session) {
     selectInput(
       inputId = "stand_select", 
       label = i18n()$t("Sélectionner un dispositif"), 
-      choices = rv$all_disp_list,
-      # choices = c("Sélectionner un dispositif", all_disp_list),
+      choices = rv$all_forest_list,
+      # choices = c("Sélectionner un dispositif", all_forest_list),
       # selected = "Sélectionner un dispositif"
       multiple = F
     )
@@ -579,18 +573,20 @@ afi_gui.server <- function(input, output, session) {
   # edit check report
   output$check_report = downloadHandler(
     filename = function() {
-      paste0(rv$disp_num, "_verif_", rv$last_year, ".pdf")
+      paste0(rv$forest_num, "_verif_", rv$last_year, ".pdf")
     },
     
     content = function(file) {
       # sécurité répertoire administrateur
-      if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+      if (is.null(rv$wd) | !length(rv$wd)) {
         show_alert(
           title = i18n()$t("Aucun répertoire administrateur sélectionné"),
           text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
           type = "error"
         )
       } else {
+        print(rv$template_path$check_report)
+        print(rv$output_filename$check_report)
         out = knit2pdf(
           input = rv$template_path$check_report, 
           output = rv$output_filename$check_report,
@@ -631,7 +627,7 @@ afi_gui.server <- function(input, output, session) {
   # observeEvent(input$edit_check_report, {
   #   
   #   # sécurité répertoire administrateur
-  #   # if (is.null(rv$repAFI) | !length(rv$repAFI)) { # test que repAFI bien défini
+  #   # if (is.null(rv$wd) | !length(rv$wd)) { # test que wd bien défini
   #   if ( is.integer(input$directory) ) {
   #     show_alert(
   #       title = i18n()$t("Aucun répertoire administrateur sélectionné"),
@@ -677,11 +673,11 @@ afi_gui.server <- function(input, output, session) {
   
       
       
-  # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermAFI)
+  # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermGF)
   observeEvent(input$process_results, {
     
     # sécurité répertoire administrateur
-    # if (is.null(rv$repAFI) | !length(rv$repAFI)) { # test que repAFI bien défini
+    # if (is.null(rv$wd) | !length(rv$wd)) { # test que wd bien défini
     if ( is.integer(input$directory) ) {
       show_alert(
         title = i18n()$t("Aucun répertoire administrateur sélectionné"),
@@ -704,7 +700,7 @@ afi_gui.server <- function(input, output, session) {
         # -- results : stand scale
         # setup : table listant les ensembles à prendre en compte (individuellement) dans l'agrégation (1:dispositif)
         results_by_stand_to_get <- data.frame(
-          V1 = "Disp", V2 = NA, V3 = NA, V4 = NA, V5 = NA, 
+          V1 = "Foret", V2 = NA, V3 = NA, V4 = NA, V5 = NA, 
           V6 = NA, V7 = NA, V8 = NA, V9 = NA, 
           stringsAsFactors = F
         )
@@ -712,11 +708,11 @@ afi_gui.server <- function(input, output, session) {
         # progress bar - calcul du nombre total de tables à importer
         # TODO : changer la place de l'argument complete_progress (utiliser ... ?)
         complete_progress <- 
-          # afi_Calculs
+          # gf_Calculs
           9 + 
-          # afi_AgregArbres
+          # gf_AgregArbres
           nrow(results_by_plot_to_get) +
-          # afi_AgregPlacettes
+          # gf_AgregPlacettes
           nrow(results_by_stand_to_get) * nrow(results_by_plot_to_get)
         
         # TODO : recréer une fonction build_tables ?
@@ -725,39 +721,39 @@ afi_gui.server <- function(input, output, session) {
         #  Etape de calcul des variables par arbre
         # print(paste0("wd : ", wd())) # debug
         # print(paste0("output_dir : ", rv$rep_sav)) # debug
-        # print(paste0("disp : ", rv$disp)) # debug
+        # print(paste0("disp : ", rv$forest)) # debug
         # print(paste0("last_cycle : ", rv$last_cycle)) # debug
         # print(paste0("complete_progress : ", complete_progress)) # debug
         # print(paste0("dim(results_by_plot_to_get)[1] : ", dim(results_by_plot_to_get)[1])) # debug
-        afi_Calculs(
-          wd = rv$repAFI, 
-          output_dir = rv$rep_sav$AFI_report, 
-          disp = rv$disp, 
+        gf_Calculs(
+          wd = rv$wd, 
+          output_dir = rv$rep_sav$GF_report, 
+          forest = rv$forest, 
           last_cycle = rv$last_cycle,
           complete_progress = complete_progress,
           i18n = i18n
         )
       # }
         
-        # afi_AgregArbres call
+        # gf_AgregArbres call
         # (pour le dispositif en cours d'analyse uniquement)
         # print(paste0("complete_progress : ", complete_progress)) # debug
-        afi_AgregArbres(
-          wd = rv$repAFI,
-          output_dir = rv$rep_sav$AFI_report,
+        gf_AgregArbres(
+          wd = rv$wd,
+          output_dir = rv$rep_sav$GF_report,
           combination_table = results_by_plot_to_get,
-          disp = rv$disp,
+          forest = rv$forest,
           last_cycle = rv$last_cycle,
           complete_progress = complete_progress,
           i18n = i18n
         )
         
-        # afi_AgregPlacettes call
-        afi_AgregPlacettes(
-          wd = rv$repAFI,
-          output_dir = rv$rep_sav$AFI_report,
+        # gf_AgregPlacettes call
+        gf_AgregPlacettes(
+          wd = rv$wd,
+          output_dir = rv$rep_sav$GF_report,
           combination_table = results_by_stand_to_get,
-          disp = rv$disp, last_cycle = rv$last_cycle,
+          forest = rv$forest, last_cycle = rv$last_cycle,
           complete_progress = complete_progress,
           i18n = i18n
         )
@@ -773,68 +769,68 @@ afi_gui.server <- function(input, output, session) {
     }
   }) # end of observeEvent
   
-  # # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermAFI)
-  # observeEvent(input$edit_AFI_report, {
+  # # -- bouton 'calcul des résultats' - calcul des variables par arbres, placettes et ensembles (package PermGF)
+  # observeEvent(input$edit_GF_report, {
   #   
   #   # -- répertoire de travail
-  #   repAFI <- parseDirPath(ui_volumes, input$directory)
-  #   # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #   wd <- parseDirPath(ui_volumes, input$directory)
+  #   # wd <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2" # debug
   #   
   #   # -- chargement des données
   #   # chemins relatifs des archives
-  #   admin_arch <- "tables/afiCodes.Rdata"
+  #   admin_arch <- "tables/gfCodes.Rdata"
   #   
   #   # création d'un nouvel environnement et chargement
   #   db = new.env()
   #   # db = globalenv()
   #   # print(str(db))
-  #   load( file.path(repAFI, admin_arch) , db) # TODO : à améliorer - supprimer chargements inutiles ! # to load Dispositif + Cycles
-  #   disp <- input$stand_select
+  #   load( file.path(wd, admin_arch) , db) # TODO : à améliorer - supprimer chargements inutiles ! # to load Dispositif + Cycles
+  #   forest <- input$stand_select
   #   
   #   with(db, {
   #     # -- gestion des noms et num du dispositif
-  #     disp_num <- as.numeric(str_sub(disp, 1, str_locate(disp, "-")[, 1] - 1)) #changement2
-  #     disp_name <- 
-  #       with(Dispositifs, Nom[match(disp_num, NumDisp)])
+  #     forest_num <- as.numeric(str_sub(forest, 1, str_locate(forest, "-")[, 1] - 1)) #changement2
+  #     forest_name <- 
+  #       with(Dispositifs, Nom[match(forest_num, NumDisp)])
   #     
   #     # -- arguments relatifs au dispositifs
   #     last_cycle <- 
-  #       with(Cycles, max(Cycle[NumDisp == disp_num], na.rm = T))
+  #       with(Cycles, max(Cycle[NumDisp == forest_num], na.rm = T))
   #     last_year <-
-  #       with(Cycles, Annee[NumDisp == disp_num & Cycle == last_cycle])
+  #       with(Cycles, Annee[NumDisp == forest_num & Cycle == last_cycle])
   #     
   #     if (length(last_year) > 1) {
   #       stop("Correction du classeur administrateur nécessaire : il y a 2 années identiques renseignées dans la feuille Cycles")
   #     }
   #     
   #     # -- création du dossier de sortie
-  #     output_dir <- file.path("out", disp, "livret_AFI")
+  #     output_dir <- file.path("out", forest, "livret_GF")
   #     dir.create(output_dir, showWarnings = F, recursive = T)
   #     
   #     # -- définition des arguments nécessaires au knit
-  #     repPdf <- file.path(repAFI, output_dir)
-  #     repLogos <- file.path(repAFI, "data/images/logos/")
+  #     repPdf <- file.path(wd, output_dir)
+  #     repLogos <- file.path(wd, "data/images/logos/")
   #     repFigures <- file.path(repPdf, "figures/")
   #     
   #     # -- superassignements
   #     # répertoire de sauvegarde pour les tables spécifiques du dispositif
   #     rep_sav <<- dirname(repPdf)
   #     # nom de la sortie en .tex
-  #     output_filename <- paste0(disp_num, "_livret-AFI_", last_year, ".tex")
+  #     output_filename <- paste0(forest_num, "_livret-GF_", last_year, ".tex")
   #     output <<- file.path(repPdf, output_filename)
   #   })
   # 
-  #   template <- "afi_Livret_2020.Rnw"
+  #   template <- "gf_Livret_2020.Rnw"
   #   # TODO : supprimer les messages de joining by
   #   
   #   # output !!
   #   output$report = downloadHandler(
-  #     filename = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/out/1-Bois des Brosses/livret_AFI/1_livret-AFI_2018.pdf",
+  #     filename = "/Users/Valentin/Travail/Outils/GitHub/PermGF2/out/1-Bois des Brosses/livret_GF/1_livret-GF_2018.pdf",
   #     
   #     content = function(file) {
   #       out = knit2pdf(
-  #         "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/template/afi_Livret_2020.Rnw",          clean = TRUE,
-  #         output = "/Users/Valentin/Travail/Outils/GitHub/PermAFI2/out/1-Bois des Brosses/livret_AFI/1_livret-AFI_2018.tex",
+  #         "/Users/Valentin/Travail/Outils/GitHub/PermGF2/template/gf_Livret_2020.Rnw",          clean = TRUE,
+  #         output = "/Users/Valentin/Travail/Outils/GitHub/PermGF2/out/1-Bois des Brosses/livret_GF/1_livret-GF_2018.tex",
   #         compiler = "pdflatex",
   #         quiet = TRUE,
   #         envir = db
@@ -846,33 +842,33 @@ afi_gui.server <- function(input, output, session) {
   #   )
   #   
   #   # knit2pdf(
-  #   #   input = file.path(repAFI, "template", template),
+  #   #   input = file.path(wd, "template", template),
   #   #   output = output,
   #   #   compiler = "pdflatex",
   #   #   quiet = TRUE,
   #   #   envir = db
   #   # )
   #   
-  #   print(file.path(repAFI, "template", template))
+  #   print(file.path(wd, "template", template))
   #   print(output)
   # }) # end of observeEvent
   
   
   # db1 <- reactive({
   #   # créer une réactive value pour le répertoire admin ?
-  #   repAFI = parseDirPath(ui_volumes, input$directory)
-  #   # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #   wd = parseDirPath(ui_volumes, input$directory)
+  #   # wd <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2" # debug
   #   
   #   # -- chargement des données
   #   # chemins relatifs des archives
-  #   admin_arch = "tables/afiCodes.Rdata"
+  #   admin_arch = "tables/gfCodes.Rdata"
   #   
   #   # -- chargement des données
   #   # chemins relatifs des archives
-  #   tables_list_arch <- file.path(repAFI, "tables/report_tables_list.Rdata")
-  #   inventory_arch <- file.path(repAFI, "tables/afiDonneesBrutes.Rdata")
-  #   admin_arch <- file.path(repAFI, "tables/afiCodes.Rdata")
-  #   dictionary_arch <- file.path(repAFI, "tables/afiDictionary.Rdata")
+  #   tables_list_arch <- file.path(wd, "tables/report_tables_list.Rdata")
+  #   inventory_arch <- file.path(wd, "tables/gfDonneesBrutes.Rdata")
+  #   admin_arch <- file.path(wd, "tables/gfCodes.Rdata")
+  #   dictionary_arch <- file.path(wd, "tables/gf_dictionary.Rdata")
   #   
   #   # création d'un nouvel environnement et chargement
   #   # db = new.env()
@@ -887,9 +883,9 @@ afi_gui.server <- function(input, output, session) {
   
   # output$data <- renderDataTable({
   #   data.frame(
-  #     repAFI = rv$rep_pdf,
-  #     disp = rv$disp,
-  #     disp_num = rv$disp_num,
+  #     wd = rv$rep_pdf,
+  #     forest = rv$forest,
+  #     forest_num = rv$forest_num,
   #     last_cycle = rv$last_cycle,
   #     last_year = rv$last_year
   #   )
@@ -897,7 +893,7 @@ afi_gui.server <- function(input, output, session) {
   # })
   
   output$text <- renderPrint({
-    # rv$repAFI
+    # rv$wd
     input$stand_select
     # wd()
   })
@@ -914,9 +910,9 @@ afi_gui.server <- function(input, output, session) {
   #   if (!is.null(wd()) & length(wd()) != 0) {
   #     
   #     # -- chemin du répertoire administrateur
-  #     rv$repAFI <- parseDirPath(ui_volumes, input$directory)
-  #     # print(paste0("repAFI = ", rv$repAFI)) # debug
-  #     # repAFI <- "/Users/Valentin/Travail/Outils/GitHub/PermAFI2" # debug
+  #     rv$wd <- parseDirPath(ui_volumes, input$directory)
+  #     # print(paste0("wd = ", rv$wd)) # debug
+  #     # wd <- "/Users/Valentin/Travail/Outils/GitHub/PermGF2" # debug
   #   }
   # }, ignoreInit = TRUE)
   
@@ -939,7 +935,7 @@ afi_gui.server <- function(input, output, session) {
           text = i18n()$t("Il doit exister un dossier 'tables' contenant les archives des données inventaire et administrateur"),
           type = "error"
         )
-        # dir.create(file.path(repAFI, "tables"), showWarnings = F)
+        # dir.create(file.path(wd, "tables"), showWarnings = F)
       } else { # else of cond '!"tables" %in% list.files(wd())'
         
         # -- sécurité présence des Rdata nécessaires
@@ -962,9 +958,9 @@ afi_gui.server <- function(input, output, session) {
             show_alert(
               title = i18n()$t("Archives des données d'inventaire manquantes"),
               text = paste0(
-                i18n()$t("Import/copie de fichiers nécessaire : les archives"), 
+                i18n()$t("Import/copie de fichiers nécessaire : les archives "), 
                 missing_arch, 
-                i18n()$t("doivent figurer dans le dossier 'tables' pour pouvoir traiter les données.")
+                i18n()$t(" doivent figurer dans le dossier 'tables' pour pouvoir traiter les données.")
               ),
               type = "error"
             )
@@ -979,15 +975,15 @@ afi_gui.server <- function(input, output, session) {
           
           # -- stands list
             # stand num list
-            all_num_list <- sort( as.numeric( unique(data()[["IdArbres"]]$NumDisp) ) )
+            all_num_list <- sort( as.numeric( unique(data()[["IdArbres"]]$NumForet) ) )
             
           # browser()
-          admin <- data()[["Dispositifs"]] %>% filter(NumDisp %in% all_num_list)
+          admin <- data()[["Forets"]] %>% filter(NumForet %in% all_num_list)
             
             # stand label list & build rv
-            if (is.element(NA, all_num_list)) warning("NumDisp vide d\u00E9tect\u00E9")
-            rv$all_disp_list <<- paste0(
-              all_num_list, "-", admin$Nom[match(all_num_list, admin$NumDisp)]
+            if (is.element(NA, all_num_list)) warning("NumForet vide d\u00E9tect\u00E9")
+            rv$all_forest_list <<- paste0(
+              all_num_list, "-", admin$Nom[match(all_num_list, admin$NumForet)]
             )
             
             # debug
@@ -995,9 +991,9 @@ afi_gui.server <- function(input, output, session) {
             # print(paste0("inventory_rdata = ", rv$inventory_rdata)) # debug
             # print(paste0("admin_rdata = ", rv$admin_rdata)) # debug
             # print(paste0("dictionary_rdata = ", rv$dictionary_rdata)) # debug
-          # print(paste0("all_disp_list = ", paste0(rv$all_disp_list[1:3], collapse = ", "))) # debug
+          # print(paste0("all_forest_list = ", paste0(rv$all_forest_list[1:3], collapse = ", "))) # debug
         } else { # else of cond 'all_arch_present'
-          rv$all_disp_list <- NULL
+          rv$all_forest_list <- NULL
         } # end of cond 'all_arch_present'
       } # end of cond '!"tables" %in% list.files(wd())'
     } # end of cond 'is.null(wd()) | !length(wd())'
@@ -1010,64 +1006,64 @@ afi_gui.server <- function(input, output, session) {
     if (input$stand_select != "") { # cond 'input$stand_select != ""' - trigger security
       
       # -- définition du répertoire de travail (TODO : argument à supprimer ?)
-      rv$repAFI <- wd()
+      rv$wd <- wd()
       
       # -- gestion des noms et num du dispositif
       # TODO : faire le tri des éléments à rendre vraiment réactifs
-      rv$disp <- input$stand_select
-      rv$disp_num <- as.numeric(str_sub(rv$disp, 1, str_locate(rv$disp, "-")[, 1] - 1))
-      # print(paste0("repAFI = ", wd())) # debug
-      rv$disp_name <-
-        with(data()[["Dispositifs"]], Nom[match(rv$disp_num, NumDisp)])
+      rv$forest <- input$stand_select
+      rv$forest_num <- as.numeric(str_sub(rv$forest, 1, str_locate(rv$forest, "-")[, 1] - 1))
+      # print(paste0("wd = ", wd())) # debug
+      rv$forest_name <-
+        with(data()[["Forets"]], Nom[match(rv$forest_num, NumForet)])
       # browser()
       # -- arguments relatifs au dispositif
       rv$last_cycle <-
-        with(data()[["Cycles"]], max(Cycle[NumDisp == rv$disp_num], na.rm = T))
+        with(data()[["Cycles"]], max(Cycle[NumForet == rv$forest_num], na.rm = T))
       rv$last_year <-
-        with(data()[["Cycles"]], Annee[NumDisp == rv$disp_num & Cycle == rv$last_cycle])
+        with(data()[["Cycles"]], Annee[NumForet == rv$forest_num & Cycle == rv$last_cycle])
 
       if (length(rv$last_year) > 1) {
         stop("Correction du classeur administrateur nécessaire : il y a 2 années identiques renseignées dans la feuille Cycles")
       }
 
       # -- création du dossier de sortie
-      rv$output_dir <- file.path("out", clean_names(rv$disp))
+      rv$output_dir <- file.path("out", clean_names(rv$forest))
 
       # -- définition des arguments nécessaires au knit
-      rv$rep_logos <- file.path(wd(), "data/images/logos")
+      rv$rep_logos <- file.path(wd(), "data/images/logos") # non actif
       
       rv$rep_pdf$check_report <- file.path(wd(), rv$output_dir, "rapport_verif")
-      rv$rep_pdf$AFI_report <- file.path(wd(), rv$output_dir, "livret_AFI")
+      rv$rep_pdf$GF_report <- file.path(wd(), rv$output_dir, "livret_GF")
       
       rv$rep_figures$check_report <- file.path(rv$rep_pdf$check_report, "figures/")
-      rv$rep_figures$AFI_report <- file.path(rv$rep_pdf$AFI_report, "figures/")
+      rv$rep_figures$GF_report <- file.path(rv$rep_pdf$GF_report, "figures/")
       
       rv$rep_sav$check_report <- dirname(rv$rep_pdf$check_report)
-      rv$rep_sav$AFI_report <- dirname(rv$rep_pdf$AFI_report)
+      rv$rep_sav$GF_report <- dirname(rv$rep_pdf$GF_report)
 
       # chemin du template (absolute path)
-      rv$template_path$check_report <- file.path(wd(), "template/afi_check_data_2021.Rnw")
-      rv$template_path$AFI_report <- file.path(wd(), "template/afi_Livret_2020_shiny_work.Rnw")
+      rv$template_path$check_report <- file.path(wd(), "template/gf_check_data_2023.Rnw")
+      rv$template_path$GF_report <- file.path(wd(), "template/gf_Carnet_2022.Rnw")
       
       # nom de la sortie en .tex
-      # rv$output_filename$check_report <- paste0(rv$disp_num, "_verif_", rv$last_year, ".tex")
+      # rv$output_filename$check_report <- paste0(rv$forest_num, "_verif_", rv$last_year, ".tex")
       rv$output_filename$check_report <- 
-        file.path( rv$rep_pdf$check_report, paste0(rv$disp_num, "_verif_", rv$last_year, ".tex") )
-      # rv$output_filename$AFI_report <- paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex")
-      rv$output_filename$AFI_report <- 
-        file.path( rv$rep_pdf$AFI_report, paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".tex") )
+        file.path( rv$rep_pdf$check_report, paste0(rv$forest_num, "_verif_", rv$last_year, ".tex") )
+      # rv$output_filename$GF_report <- paste0(rv$forest_num, "_livret-GF_", rv$last_year, ".tex")
+      rv$output_filename$GF_report <- 
+        file.path( rv$rep_pdf$GF_report, paste0(rv$forest_num, "_livret-GF_", rv$last_year, ".tex") )
 
       # debug
       # print(paste0("rep_pdf = ", rv$rep_pdf)) # debug
       # print(paste0("rep_logos = ", rv$rep_logos)) # debug
       # print(paste0("rep_figures = ", rv$rep_figures)) # debug
       # print(paste0("rep_figures (check report) = ", rv$rep_figures$check_report)) # debug
-      # print(paste0("rep_figures (livret AFI) = ", rv$rep_figures$AFI_report)) # debug
+      # print(paste0("rep_figures (livret GF) = ", rv$rep_figures$GF_report)) # debug
       # print(paste0("rep_sav = ", rv$rep_sav)) # debug
       # print(paste0("output_dir = ", rv$output_dir)) # debug
       # print(paste0("template_path = ", rv$template_path)) # debug
       # print(paste0("lang = ", rv$lang)) # debug
-      # print(rv$output_filename$AFI_report) # debug
+      # print(rv$output_filename$GF_report) # debug
       # print(rv$output_filename$check_report) # debug
     } # end of cond 'input$stand_select != ""' - trigger security
   }, ignoreInit = T)
@@ -1084,21 +1080,21 @@ afi_gui.server <- function(input, output, session) {
   #   # # répertoire de sauvegarde pour les tables spécifiques du dispositif
   #   # rep_sav <<- dirname(repPdf)
   #   # nom de la sortie en .tex
-  #   output_filename <- paste0(disp_num, "_livret-AFI_", last_year, ".tex")
+  #   output_filename <- paste0(forest_num, "_livret-GF_", last_year, ".tex")
   #   output <<- file.path(repPdf, output_filename)
   # })
   
   data_set <- reactive({stand_updated <- paste0(input$stand_select, "coucou")})
   
-  # edit AFI report
-  output$AFI_report = downloadHandler(
+  # edit GF report
+  output$GF_report = downloadHandler(
     filename = function() {
-      paste0(rv$disp_num, "_livret-AFI_", rv$last_year, ".pdf")
+      paste0(rv$forest_num, "_livret-GF_", rv$last_year, ".pdf")
     },
     
     content = function(file) {
       # sécurité répertoire administrateur
-      if (is.null(rv$repAFI) | !length(rv$repAFI)) {
+      if (is.null(rv$wd) | !length(rv$wd)) {
         show_alert(
           title = i18n()$t("Aucun répertoire administrateur sélectionné"),
           text = i18n()$t("Choisir un répertoire administrateur avant de commencer le traitement de données"),
@@ -1106,20 +1102,20 @@ afi_gui.server <- function(input, output, session) {
         )
       } else {
       # TEST = data_set()
-      # rep <- rv$repAFI
+      # rep <- rv$wd
       # tk_messageBox(type = "ok", message = rv$template_path) # debug
       # chargement des archives nécessaires au knit
-      # load( file.path(rv$rep_sav, "tables/afiTablesBrutes.Rdata") )
-      # load( file.path(rv$rep_sav, "tables/afiTablesElaboreesPlac.Rdata") )
+      # load( file.path(rv$rep_sav, "tables/gfTablesBrutes.Rdata") )
+      # load( file.path(rv$rep_sav, "tables/gfTablesElaboreesPlac.Rdata") )
       # for(i in 1:length(results_by_plot)) {assign(names(results_by_plot)[i], results_by_plot[[i]])}
-      # load( file.path(rv$rep_sav, "/tables/afiTablesElaborees.Rdata") )
+      # load( file.path(rv$rep_sav, "/tables/gfTablesElaborees.Rdata") )
       # for(i in 1:length(results_by_group)) {assign(names(results_by_group)[i], results_by_group[[i]])}
       
-      # TODO : filtrer les tables (avec "filter_by_disp" ?)
+      # TODO : filtrer les tables (avec "filter_by_forest" ?)
       
       out = knit2pdf(
-        input = rv$template_path$AFI_report, 
-        output = rv$output_filename$AFI_report,
+        input = rv$template_path$GF_report, 
+        output = rv$output_filename$GF_report,
         compiler = "pdflatex",
         quiet = TRUE,
         # envir = data(), si data() choisi comme environnement, rajouter les éléments manquants à l'environnement data -> mieux définir figures (avec adresse de rep_pdf), i18n et sans doute d'autres
@@ -1143,90 +1139,91 @@ afi_gui.server <- function(input, output, session) {
       width = 12,
       
       # -- column 'admin data import'
-      column(
-        width = 12,
-        style = "display:inline-block;width:50%",
-        
-        div(
-          # -- text 'import des données administrateur'
-          column(
-            width = 12,
-            # div(
-            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
-            strong(i18n()$t("Import des données administrateur :"))
-            # ),
-          ),
-          
-          # -- bouton 'import des données administrateur'
-          column(
-            width = 12,
-            style = "display:inline-block;width:150pt",
-            actionButton(
-              inputId = "import_admin_data", 
-              label = i18n()$t("Importer les données"),
-              width = "135pt"
-            )
-          )
-        ),
-        
-        # -- bouton 'sélection des fichiers administrateurs'
-        column(
-          style = "display:inline-block;width:100%;padding:-10pt",
-          # style = "display:inline-block;border:1px solid;width:100%;",
-          width = 12,
-          shinyFilesButton(
-            id = "select_admin_files",
-            label = i18n()$t("Sélection des fichiers administrateurs"),
-            title = NULL,
-            multiple = TRUE
-          )
-        )
-      ),
+      # column(
+      #   width = 12,
+      #   style = "display:inline-block;width:50%",
+      #   
+      #   div(
+      #     # -- text 'import des données administrateur'
+      #     column(
+      #       width = 12,
+      #       # div(
+      #       style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+      #       strong(i18n()$t("Import des données administrateur :"))
+      #       # ),
+      #     ),
+      #     
+      #     # -- bouton 'import des données administrateur'
+      #     column(
+      #       width = 12,
+      #       style = "display:inline-block;width:150pt",
+      #       actionButton(
+      #         inputId = "import_admin_data", 
+      #         label = i18n()$t("Importer les données"),
+      #         width = "135pt"
+      #       )
+      #     )
+      #   ),
+      #   
+      #   # -- bouton 'sélection des fichiers administrateurs'
+      #   column(
+      #     style = "display:inline-block;width:100%;padding:-10pt",
+      #     # style = "display:inline-block;border:1px solid;width:100%;",
+      #     width = 12,
+      #     shinyFilesButton(
+      #       id = "select_admin_files",
+      #       label = i18n()$t("Sélection des fichiers administrateurs"),
+      #       title = NULL,
+      #       multiple = TRUE
+      #     )
+      #   )
+      # ),
       
       # -- column 'inventory data import'
       column(
         width = 12,
-        style = "display:inline-block;width:50%",
+        style = "display:inline-block;width:100%",
         
         div(
           # -- text 'import des données d'inventaire'
           column(
             width = 12,
             # div(
-            style = "display:inline-block;width:calc(100% - 150pt - 3em)",
+            style = "display:inline-block;width:30%",
             strong(i18n()$t("Import des données d'inventaire :"))
             # ),
+          ),
+          
+          # -- bouton 'sélection des fichiers d'inventaire'
+          column(
+            style = "display:inline-block;width:40%;",
+            # style = "display:inline-block;border:1px solid;width:100%;",
+            width = 12,
+            shinyFilesButton(
+              id = "select_inventory_files",
+              label = i18n()$t("Sélection des fichiers d'inventaire"),
+              title = NULL,
+              multiple = TRUE
+            )#,
+            # verbatimTextOutput("directorypath")
           ),
           
           # -- bouton 'import des données d'inventaire'
           column(
             width = 12,
-            style = "display:inline-block;width:150pt",
+            style = "display:inline-block;width:30%",
             actionButton(
               inputId = "import_inventory_data", 
               label = i18n()$t("Importer les données"),
               width = "135pt"
             )
           )
-        ),
-        
-        # -- bouton 'sélection des fichiers d'inventaire'
-        column(
-          style = "display:inline-block;width:100%;",
-          # style = "display:inline-block;border:1px solid;width:100%;",
-          width = 12,
-          shinyFilesButton(
-            id = "select_inventory_files",
-            label = i18n()$t("Sélection des fichiers d'inventaire"),
-            title = NULL,
-            multiple = TRUE
-          )#,
-          # verbatimTextOutput("directorypath")
-        )
+          
+        ) # end of div
       )
     )
   })
   
-  # reactive value containing all parameters used to process results + edit AFI report
+  # reactive value containing all parameters used to process results + edit GF report
   
 }
